@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   implements="as3.ISubModule"
+		   width="100%" height="100%">
+	<fx:Script>
+		<![CDATA[
+			import as3.Config;
+			import as3.excel.ASXmlFile;
+			import as3.excel.PhpFile;
+			
+			import com.FileUtil;
+			import com.adobe.crypto.MD5;
+			
+			import mx.collections.*;
+			import mx.controls.Alert;
+			
+			private var curParserDir:String;
+			private var curParserFileArray:Array = [];
+			private var curOutputMsg:String;
+			private var _outNum:int =0;
+			
+			public function init():void{ 
+				txtOutput.editable = false;
+			}
+			
+			public function start():void{
+				curParserDir = Config.RESOURCE_PATH + "/xajh_excel/";
+				curOutputMsg = "";
+				PushOutputMsg("开始解析目录：" + curParserDir);
+				
+				setTimeout(buildAllXMl, 200, null);
+			}
+			
+			private function PushOutputMsg(s:String):void{
+				curOutputMsg += s;
+				
+				txtOutput.text = "";
+				txtOutput.appendText(curOutputMsg);
+			}
+			
+			private function ShowOutputMsg(s:String):void{
+				var msg:String = curOutputMsg + s;
+				
+				txtOutput.text = "";
+				txtOutput.appendText(msg);
+			}
+			
+			private function ParserExcelFile():void{
+				var f:File = curParserFileArray.shift();
+				if( f != null ){
+					if( !f.isDirectory ){
+						buildXMl(f);
+					}
+					
+					setTimeout(ParserExcelFile, 1);
+				}else{
+					PushOutputMsg("\n解析完毕！已生成"+_outNum+"份xml文件和hpp文件！");
+					PushOutputMsg("\n=================================================");
+				}
+			}
+			
+			private function buildAllXMl(event:MouseEvent):void{
+				_outNum=0;
+				var excelFle:File = new File(curParserDir);
+				if(excelFle.isDirectory){
+					curParserFileArray=excelFle.getDirectoryListing();
+					setTimeout(ParserExcelFile, 1);
+				}
+			}
+			
+			protected function buildXMl(excelFle:File):void
+			{				
+				ShowOutputMsg("\n正在处理文件："+excelFle.name);
+				
+				var fileNameArr:Array = excelFle.name.split(".");
+				var logFileName:String = curParserDir+"log"+"/"+fileNameArr[0]+".log";
+				var export_asxmldir:String = curParserDir+"as_xml/";
+				var export_phpdir:String = curParserDir+"php/";
+				
+				var xmlFile:File = new File(export_asxmldir);
+				var logFile:File = new File(logFileName);
+				
+				var zStream:FileStream = new FileStream();
+				var byteArray:ByteArray = new ByteArray;
+				byteArray.endian = Endian.LITTLE_ENDIAN; 
+				zStream.open(excelFle, FileMode.READ); 
+				zStream.readBytes(byteArray, 0, byteArray.length);
+
+				var md5Str:String=MD5.hashBytes(byteArray);
+//				if(logFile.exists && getFileStr(logFile)==md5Str)
+//					return;
+				
+//				var rootXMl:XML = new XML("<"+fileNameArr[0]+"list/>")
+//				var xml:XML = FileUtil.buildXML(excelFle.nativePath,rootXMl)	;
+//				if(xml){
+//					saveXMl(xml,xmlFile,md5Str,logFile);
+//				}
+				
+				new ASXmlFile(excelFle.nativePath, export_asxmldir, fileNameArr[0]);
+				new PhpFile(excelFle.nativePath, export_phpdir, excelFle.name.substr(0,4));
+				
+				SaveLogData(excelFle.name,md5Str,logFile);
+			}
+			
+			private function SaveLogData(filename:String,logStr:String,logFile:File):void
+			{
+				var fs:FileStream = new FileStream();
+				
+				fs.open(logFile, FileMode.WRITE);
+				fs.writeUTFBytes(logStr);
+				fs.close();
+				
+				PushOutputMsg("\n成功处理Excel："+ filename);
+				_outNum++;
+			}
+			
+			private function getFileStr(file:File):String
+			{
+				var str:String
+				try
+				{
+					var fs:FileStream = new FileStream();
+					fs.open( file, FileMode.READ );
+					str= fs.readUTFBytes( fs.bytesAvailable );
+					fs.close();
+				}catch(e:Error) {
+					Alert.show(file.nativePath +"\n"+e.message);
+				}
+				return str;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:TextArea id="txtOutput" left="8" right="8" top="8" bottom="64"/>
+</mx:Canvas>

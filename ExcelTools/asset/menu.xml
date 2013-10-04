@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<menu>
+	<menuitem label="开始" data="">
+		<menuitem label="生成数据"  clazz="BuildData" />
+	</menuitem>
+	<menuitem label="设置" data="">
+		<menuitem label="切换工作空间" data="set-path" />
+	</menuitem>
+	<menuitem label="关于" data="">
+		<menuitem label="版本：V1.0b 作者：胡孙仁" />
+	</menuitem>
+</menu>
