@@ -1,0 +1,1000 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   implements="com.uqee.xajh.editor.IEditor"
+		   width="100%" height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.uqee.xajh.XMLManager;
+			import com.uqee.xajh.editor.XMLFileUtil;
+			
+			import mx.collections.*;
+			import mx.controls.Alert;
+			import mx.events.MenuEvent;
+			
+			import spark.components.ComboBox;
+			import spark.events.IndexChangeEvent;
+			import spark.events.TextOperationEvent;
+			
+			[Bindable]
+			public var sexCollection_:XMLListCollection = new XMLListCollection();
+			[Bindable]
+			public var jobTypeCollection_:XMLListCollection = new XMLListCollection();
+			[Bindable]
+			public var taskTypeCollection_:XMLListCollection = new XMLListCollection();
+			[Bindable]
+			public var taskLevelCollection_:XMLListCollection = new XMLListCollection();
+			[Bindable]
+			public var taskTargetTypeCollection_:XMLListCollection = new XMLListCollection();
+			[Bindable]
+			public var rewardTypeCollection_:XMLListCollection = new XMLListCollection();
+			[Bindable]
+			public var taskItemList_:XMLListCollection = new XMLListCollection();
+			
+			[Bindable]
+			public var currentTask_:XML = <Task />;			
+			
+			public var rewardItems_:Array = [];
+			public var rewardValues_:Array = [];
+			public var appectTalk_:Array=[];
+			public var comTalk_:Array=[];
+			
+			static private var TASK_FILENAME:String = "Task.xml"; 
+			
+			public function save(dir:File):void {
+				var xml:XML = <TaskList/>;
+				for (var i:int = 0; i < taskItemList_.length; ++i) {
+					xml.appendChild(taskItemList_[i]);
+				}
+				var filename:String = dir.nativePath + "/" + TASK_FILENAME;
+				var file:File = new File(filename);
+				var fs:FileStream = new FileStream();
+				fs.open(file, FileMode.WRITE);
+				fs.writeUTFBytes(xml.toXMLString());
+				fs.close();
+			}
+			
+			public function load(dir:File):void {
+				var filename:String = dir.nativePath + "/" + TASK_FILENAME;
+				var file:File = new File(filename);
+				var xml:XML = XMLFileUtil.getXmlFile(file);
+				if (xml) {
+					
+					taskItemList_.source = xml.Task;
+				}
+			}
+			
+			public function init():void { 
+				var type:XML = XMLManager.instance.getXML("EditorTypes.xml");
+				jobTypeCollection_.source = type.Job.Type;								
+				taskTypeCollection_.source = type.Task.Type;				
+				taskLevelCollection_.source = type.TaskLevel.Level;
+				taskTargetTypeCollection_.source = type.TaskTargetType.Target;
+				rewardTypeCollection_.source = type.TaskRewardType.Reward;
+				sexCollection_.source = type.Sex.Type;
+			} 
+			
+			private function sortXLC():void {
+				var idSort:Sort = new Sort();
+				idSort.fields = [new SortField('@id', true,false,true)];
+				
+				taskItemList_.sort = idSort;
+				taskItemList_.refresh();
+			}
+			
+			private function displayTaskItem(taskItem:XML):void {
+				rewardItems_.splice(0, rewardItems_.length);
+				rewardValues_.splice(0, rewardValues_.length);
+				appectTalk_.splice(0, appectTalk_.length);
+				comTalk_.splice(0, comTalk_.length);
+				talk_dialog_container.removeAllElements();
+				reward_container.removeAllElements();
+				acceptTalk_container.removeAllElements();
+				talk_dialog_container.height=	acceptTalk_container.height =10;
+				
+				for (var i:int = 0; i < sexCollection_.length; ++i) {
+					if (int(sexCollection_[i].@ident) == int(taskItem.@sex_required)) {
+						sex_required.selectedIndex = i;
+						break;
+					}
+				}
+				for (i = 0; i < jobTypeCollection_.length; ++i) {
+					if (int(jobTypeCollection_[i].@ident) == int(taskItem.@job_type)) {
+						job_type.selectedIndex = i;
+						break;
+					}
+				}
+				//party_required.selected = taskItem.@party_required;
+				for (i = 0; i < taskTypeCollection_.length; ++i) {
+					if (int(taskTypeCollection_[i].@ident) == int(taskItem.@task_type)) {
+						task_type.selectedIndex = i;
+						break;
+					}
+				}
+				for (i = 0; i < taskLevelCollection_.length; ++i) {
+					if (taskLevelCollection_[i].@ident == int(taskItem.@task_level)) {
+						task_level.selectedIndex = i;
+						break;
+					}
+				}
+				for (i = 0; i < taskTargetTypeCollection_.length; ++i) {
+					if (int(taskTargetTypeCollection_[i].@ident) == int(taskItem.@target_type)) {
+						target_type.selectedIndex = i;
+						break;
+					}
+				}
+				target_type_param_group_1.visible = false;
+				target_type_param_group_2.visible = false;
+				target_type_param_group_3.visible = false;
+				var num:int;
+				switch (int(taskItem.@target_type)) {
+					case 0://立即完成
+						break;
+					case 1://对话任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "NPC ID:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					
+					case 2://杀怪等级
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "浮动lv:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						target_type_param_group_2.visible = true;
+						target_type_param_2_label.text = "个数:";
+						target_type_param_2_input.text = taskItem.@target_param2.toString();
+						break;
+					case 4://道具需求任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "道具ID:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						target_type_param_group_2.visible = true;
+						target_type_param_2_label.text = "道具个数:";
+						target_type_param_2_input.text = taskItem.@target_param2.toString();
+						break;
+					case 5://护送任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "地图ID:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						target_type_param_group_2.visible = true;
+						num = int(taskItem.@target_param2);
+						target_type_param_2_label.text = "x:";
+						target_type_param_2_input.text = (num >> 16).toString();
+						target_type_param_group_3.visible = true;
+						target_type_param_3_label.text = "y:";
+						target_type_param_3_input.text = (num & 0xffff).toString();
+						break;
+					case 6://使用道具任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "道具ID:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						target_type_param_group_2.visible = true;
+						num = int(taskItem.@target_param2);
+						target_type_param_2_label.text = "x:";
+						target_type_param_2_input.text = (num >> 16).toString();
+						target_type_param_group_3.visible = true;
+						target_type_param_3_label.text = "y:";
+						target_type_param_3_input.text = (num & 0xffff).toString();
+						break;
+					case 7://探索任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "地图ID:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						target_type_param_group_2.visible = true;
+						num = int(taskItem.@target_param2);
+						target_type_param_2_label.text = "x:";
+						target_type_param_2_input.text = (num >> 16).toString();
+						target_type_param_group_3.visible = true;
+						target_type_param_3_label.text = "y:";
+						target_type_param_3_input.text = (num & 0xffff).toString();
+						break;
+					case 8://使用技能
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "技能ID:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 9://小游戏任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "游戏ID:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 10://问天任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "猎命次数:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 11://凤凰蛋任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "收集凤凰蛋数量:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 12://梅树充能任务
+						target_type_param_group_1.visible = true;
+						target_type_param_group_2.visible = true;
+						target_type_param_1_label.text = "为谁（1自己，2好友）:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						target_type_param_2_label.text = "充能次数:";
+						target_type_param_2_input.text = taskItem.@target_param1.toString();
+						break;
+					case 13://复活作物任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "复活作物数量:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 14://土地种植任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "种植次数:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 15://武道会任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "参加次数:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 16://通天塔任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "完成第几层:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 17://帮会捐献任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "捐献银两数:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 18://个人灵签任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "完成个人灵签次数:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 19://帮会锦囊
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "开启次数:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 20://每日问答任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "答题数:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 21://元宝消费任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "元宝消费数:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 22://门派 boss任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "对boss伤害总量:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 23://送花任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "给玩家赠送鲜花次数:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 24://加入门派任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "给玩家赠送鲜花次数:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 25://杀怪任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "怪物ID:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						target_type_param_group_2.visible = true;
+						target_type_param_2_label.text = "怪物个数:";
+						target_type_param_2_input.text = taskItem.@target_param2.toString();
+						break;
+					case 26://强化装备
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "强化次数:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 27://升级心法
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "升级次数:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+					case 28://浮屠塔
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "完成第几层:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+					case 29://运镖
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "运镖次数:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 30://运镖
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "强化等级数:";
+						target_type_param_1_input.text = taskItem.@target_param1.toString();
+						break;
+					case 32://登陆器登录
+						break;
+				}
+				for each (var item:XML in taskItem..RewardItem) {
+					addRewardItemUI(int(item.@id), int(item.@count),int(item.@bindType));
+				}
+				for each (item in taskItem..RewardValue) {
+					addRewardUI(int(item.@type), int(item.@value));
+				}
+				
+				for each (item in taskItem..AcceptTalk) {
+					addNewAcceptTalkUI(item.@desc,item.@who);
+				}
+				
+				for each (item in taskItem..talk_dialog) {
+					addNewComTalkUI(item.@desc,item.@who);
+				}
+				
+			}
+			
+			private function taskTargetTypeChanged(event:IndexChangeEvent):void {
+				var list:DropDownList = event.target as DropDownList;
+				currentTask_.@target_type = int(list.selectedItem.@ident);
+				target_type_param_group_1.visible = false;
+				target_type_param_group_2.visible = false;
+				target_type_param_group_3.visible = false;
+				switch (int(list.selectedItem.@ident)) {
+					case 0://立即完成						
+						break;
+					case 1://对话任务
+						currentTask_.@finish_immediate = 1;
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "NPC ID:";
+						target_type_param_1_input.text = "0";
+						break;
+					
+					case 2://杀怪等级
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "浮动:";
+						target_type_param_1_input.text = "0";
+						target_type_param_group_2.visible = true;
+						target_type_param_2_label.text = "怪物个数:";
+						target_type_param_2_input.text = "1";
+						break;
+					case 4://道具需求任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "道具ID:";
+						target_type_param_1_input.text = "0";
+						target_type_param_group_2.visible = true;
+						target_type_param_2_label.text = "道具个数:";
+						target_type_param_2_input.text = "1";
+						break;
+					case 5://护送任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "地图ID:";
+						target_type_param_1_input.text = "0";
+						target_type_param_group_2.visible = true;
+						target_type_param_2_label.text = "x:";
+						target_type_param_2_input.text = "0";
+						target_type_param_group_3.visible = true;
+						target_type_param_3_label.text = "y:";
+						target_type_param_3_input.text = "0";
+						break;
+					case 6://使用道具任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "道具ID:";
+						target_type_param_1_input.text = "0";
+						target_type_param_group_2.visible = true;
+						target_type_param_2_label.text = "x:";
+						target_type_param_2_input.text = "0";
+						target_type_param_group_3.visible = true;
+						target_type_param_3_label.text = "y:";
+						target_type_param_3_input.text = "0";
+						break;
+					case 7://探索任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "地图ID:";
+						target_type_param_1_input.text = "0";
+						target_type_param_group_2.visible = true;
+						target_type_param_2_label.text = "x:";
+						target_type_param_2_input.text = "0";
+						target_type_param_group_3.visible = true;
+						target_type_param_3_label.text = "y:";
+						target_type_param_3_input.text = "0";
+						break;
+					case 8://使用技能
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "技能ID:";
+						target_type_param_group_2.visible = false;
+						target_type_param_group_3.visible = false;
+						break;
+					case 9://小游戏任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "游戏ID:";
+						break;
+					case 10://问天任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "猎命次数:";
+						break;
+					case 11://凤凰蛋任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "收集凤凰蛋数量:";
+						break;
+					case 12://梅树充能任务
+						target_type_param_group_1.visible = true;
+						target_type_param_group_2.visible = true;
+						target_type_param_1_label.text = "为谁（1自己，2好友）:";
+						target_type_param_2_label.text = "充能次数:";
+						break;
+					case 13://复活作物任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "复活作物数量:";
+						break;
+					case 14://土地种植任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "种植次数:";
+						break;
+					case 15://武道会任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "参加次数:";
+						break;
+					case 16://通天任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "完成第几层:";
+						break;
+					case 17://帮会捐献任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "捐献银两数:";
+						break;
+					case 18://个人灵签任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "完成个人灵签次数:";
+						break;
+					case 19://帮会锦囊
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "开启次数:";
+						break;
+					case 20://每日问答任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "答题数:";
+						break;
+					case 21://元宝消费任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "元宝消费数:";
+						break;
+					case 22://门派 boss任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "对boss伤害总量:";
+						break;
+					case 23://送花任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "给玩家赠送鲜花次数:";
+						break;
+					case 24://加入门派
+						
+						break;
+					case 25://杀怪任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "怪物ID:";
+						target_type_param_1_input.text = "0";
+						target_type_param_group_2.visible = true;
+						target_type_param_2_label.text = "怪物个数:";
+						target_type_param_2_input.text = "1";
+						break;
+					case 26://强化装备
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "强化次数:";
+						target_type_param_1_input.text = "0";
+						break;
+					case 27://心法
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "升级次数:";
+						target_type_param_1_input.text = "0";
+						break;
+					case 28://浮屠
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "完成第几层:";
+						target_type_param_1_input.text = "1";
+						break;
+					case 29://运镖
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "运镖次数:";
+						target_type_param_1_input.text = "1";
+						break;
+					case 30://强化任务
+						target_type_param_group_1.visible = true;
+						target_type_param_1_label.text = "强化等级数:";
+						target_type_param_1_input.text = "1";
+						break;
+					case 32://登陆器登录
+						break;
+				}
+			}
+			
+			protected function addNewItem(event:MouseEvent):void {
+				currentTask_ = <Task />;
+				var id:int = 1;
+				for (var i:int = 0; i < taskItemList_.length; ++i) {
+					if (int(taskItemList_[i].@id) >= id) {
+						id = int(taskItemList_[i].@id)  + 1;
+					}
+				}
+				currentTask_.@id = id;
+				currentTask_.@name = "";
+				currentTask_.@desc = "";
+				currentTask_.@complete_npc_id = "0";
+				currentTask_.@draw_npc_id = "0";
+				currentTask_.@level_required = "0";
+				currentTask_.@job_type = "0";
+				currentTask_.@parent_task_id = "0";
+				currentTask_.@target_map_id = "0";
+				currentTask_.@sex_required = "0";
+				currentTask_.@finish_immediate = "0";
+				currentTask_.@task_type = "1";
+				displayTaskItem(currentTask_);
+			}
+			
+			protected function saveNewItem(event:MouseEvent):void
+			{
+				if (int(task_id.text) == 0) {
+					return;
+				}
+				var num:int;
+				// TODO Auto-generated method stub
+				delete currentTask_.@target_param1;
+				delete currentTask_.@target_param2;
+				delete currentTask_.@target_param3;
+				switch (int(target_type.selectedItem.@ident)) {
+					case 0://立即完成						
+						break;
+					case 1://对话任务
+						currentTask_.@target_param1 = int(target_type_param_1_input.text);
+						break;
+					
+					case 2://杀怪等级
+						currentTask_.@target_param1 = int(target_type_param_1_input.text);
+						currentTask_.@target_param2 = int(target_type_param_2_input.text);
+						break;
+					case 4://道具需求任务
+						currentTask_.@target_param1 = int(target_type_param_1_input.text);
+						currentTask_.@target_param2 = int(target_type_param_2_input.text);
+						break;
+					case 5://护送任务
+						currentTask_.@target_param1 = int(target_type_param_1_input.text);
+						num = (parseInt(target_type_param_2_input.text) << 16) + int(target_type_param_3_input.text);
+						currentTask_.@target_param2 = num;
+						break;
+					case 6://使用道具任务
+						currentTask_.@target_param1 = int(target_type_param_1_input.text);
+						num = (parseInt(target_type_param_2_input.text) << 16) + int(target_type_param_3_input.text);
+						currentTask_.@target_param2 = num;
+						break;
+					case 7://探索任务
+						currentTask_.@target_param1 = int(target_type_param_1_input.text);
+						num = (parseInt(target_type_param_2_input.text) << 16) + int(target_type_param_3_input.text);
+						currentTask_.@target_param2 = num;				
+						break;
+					case 8://使用技能
+					case 9://小游戏任务
+					case 10://问天任务
+					case 16://通天塔任务
+					case 28://浮屠塔任务
+					case 29://运镖任务
+					case 30://强化
+					case 11://凤凰蛋任务
+						currentTask_.@target_param1 = int(target_type_param_1_input.text);
+						break;
+					case 12://梅树充能任务
+						currentTask_.@target_param1 = int(target_type_param_1_input.text);
+						currentTask_.@target_param2 = int(target_type_param_1_input.text);
+						break;
+					case 13://复活作物任务
+					case 14://土地种植任务
+					case 15://武道会任务
+					case 17://帮会捐献任务
+					case 18://个人灵签任务
+					case 19://帮会锦囊
+					case 20://每日问答任务
+					case 21://元宝消费任务	
+					case 22://门派 boss任务
+					case 23://送花任务
+						currentTask_.@target_param1 = int(target_type_param_1_input.text);
+						break;
+					case 25://杀怪任务
+						currentTask_.@target_param1 = int(target_type_param_1_input.text);
+						currentTask_.@target_param2 = int(target_type_param_2_input.text);
+						break;
+					case 26://强化装备
+					case 27://心法
+						currentTask_.@target_param1 = int(target_type_param_1_input.text);
+						break;
+					case 32://登陆器登录
+						break;
+					
+				}
+				delete currentTask_.RewardValue;
+				delete currentTask_.RewardItem;
+				delete currentTask_.AcceptTalk;
+				delete currentTask_.talk_dialog;
+				for (var i:int = 0; i < rewardItems_.length; ++i) {
+					if (parseInt(rewardItems_[i]['id'].text) > 0) {
+						var item:XML = <RewardItem />;
+						item.@id = int(rewardItems_[i]['id'].text);
+						item.@count = int(rewardItems_[i]['count'].text);
+						item.@bindType = int(rewardItems_[i]['bindType'].selected?1:0);
+						currentTask_.appendChild(item);
+					}
+				}
+				for (i = 0; i < rewardValues_.length; ++i) {
+					var rewardType:DropDownList = rewardValues_[i]['type'] as DropDownList;
+					if (int(rewardType.selectedItem.@ident) > 0) {
+						item = <RewardValue />;
+						item.@type = int(rewardValues_[i]['type'].selectedItem.@ident);
+						item.@value = int(rewardValues_[i]['value'].text);
+						currentTask_.appendChild(item);	
+					}
+				}
+				
+				//var idx:int=0;
+				for(i=0;i<appectTalk_.length;++i)
+				{
+					if(appectTalk_[i]['text'].text!="")
+					{
+						item = <AcceptTalk />;
+						item.@desc = appectTalk_[i]['text'].text;
+						item.@who = ComboBox(appectTalk_[i]['combo']).selectedIndex==0?"npc":"player";
+						if(CheckBox(appectTalk_[i]['check']).selected)
+							item.@video = 1;
+						//item.@index =idx++;
+						currentTask_.appendChild(item);
+					}
+				}
+				
+				
+				for(i=0;i<comTalk_.length;++i)
+				{
+					if(comTalk_[i]['text'].text!="")
+					{
+						item = <talk_dialog />;
+						item.@desc = comTalk_[i]['text'].text;
+						item.@who = ComboBox(comTalk_[i]['combo']).selectedIndex==0?"npc":"player";
+						if(CheckBox(appectTalk_[i]['check']).selected)
+							item.@video = 1;
+						//item.@index =idx++;
+						currentTask_.appendChild(item);
+					}
+				}
+				
+				trace(currentTask_.toString());
+				var isNew:Boolean = taskItemList_.getItemIndex(currentTask_) < 0;
+				if (isNew) {
+					taskItemList_.addItem(currentTask_);
+				}
+				sortXLC()
+				//taskItemList_.refresh();
+			}
+			
+			protected function taskItemSelectChanged(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				currentTask_ = taskContainer.selectedItem;
+				this.displayTaskItem(currentTask_);
+			}
+			
+			protected function addRewardItemUI(id:int = 0, count:int = 1,bindType:int=0):void {
+				var obj:Object = {};
+				var hgroup:HGroup = new HGroup();
+				hgroup.height = 20;
+				var label:Label = new Label();
+				
+				label.text = "道具ID:";
+				label.setStyle("verticalAlign", "middle");			
+				var input:TextInput = new TextInput();
+				input.text = id.toString();
+				input.restrict = "0-9";
+				input.width = 30;
+				obj['id'] = input;
+				hgroup.addElement(label);
+				hgroup.addElement(input);
+				
+				label = new Label();
+				label.text = "道具个数:";
+				label.setStyle("verticalAlign", "middle");				
+				input = new TextInput();
+				input.text = count.toString();				
+				input.restrict = "0-9";
+				input.width = 30;
+				obj['count'] = input;	
+				hgroup.addElement(label);
+				hgroup.addElement(input);
+				
+				label = new Label();
+				label.text = "是否绑定:";
+				label.setStyle("verticalAlign", "middle");						
+				var check:CheckBox = new CheckBox();
+				check.selected=bindType==1?true:false;
+				obj['bindType'] = check;
+				hgroup.addElement(label);
+				hgroup.addElement(check);
+				
+				obj['group'] = hgroup;
+				reward_container.addElement(hgroup);
+				rewardItems_.push(obj);		
+			}
+			
+			protected function addRewardUI(type:int = 1, value:int = 0):void {
+				var obj:Object = {};
+				var hgroup:HGroup = new HGroup();
+				hgroup.height = 20;
+				var label:Label = new Label();
+				label.text = "类型:";
+				label.setStyle("verticalAlign", "middle");
+				hgroup.addElement(label);
+				var rewardType:DropDownList = new DropDownList();
+				rewardType.dataProvider = rewardTypeCollection_;
+				rewardType.labelField = "@name";
+				var selectIndex:int = 0;
+				for (var i:int = 0; i < rewardTypeCollection_.length; ++i) {
+					if (int(rewardTypeCollection_[i].@ident) == type) {
+						selectIndex = i;
+						break;
+					}
+				}
+				rewardType.selectedIndex = selectIndex;
+				obj['type'] = rewardType;
+				hgroup.addElement(rewardType);
+				label = new Label();
+				label.text = "数量:";
+				label.setStyle("verticalAlign", "middle");
+				hgroup.addElement(label);
+				var input:TextInput = new TextInput();
+				input.width = 30;
+				input.text = value.toString();
+				obj['value'] = input; 
+				hgroup.addElement(input);
+				var btn:Button = new Button();
+				btn.label = "删除";
+				obj['group'] = hgroup;
+				rewardValues_.push(obj);
+				reward_container.addElement(hgroup);
+			}
+			
+			protected function addNewAcceptTalkUI(t:String="",w:String="npc"):void
+			{
+				var obj:Object = {};
+				var hgroup:HGroup = new HGroup();
+				
+				var combo:ComboBox = new ComboBox();
+				var complexDP:ArrayCollection = new ArrayCollection(
+					[    {txt:"npc说：", type:"npc"}, 
+						{txt:"玩家说：", type:"player"}, 
+					]                
+				); 
+				combo.dataProvider = complexDP;
+				combo.labelField = "txt";
+				combo.selectedIndex = w=="npc"?0:1;
+				hgroup.addElement(combo);
+				obj['combo'] = combo;
+				
+				var text:TextArea = new TextArea();
+				text.width = 200;
+				text.height = 50;
+				text.text = t;
+				hgroup.addElement(text);
+				obj['text'] = text;
+				
+				var label:Label = new Label();
+				label.text="  播放视屏";
+				hgroup.addElement(label);
+				var check:CheckBox = new CheckBox();
+				hgroup.addElement(check);
+				obj["check"] = check;
+				
+				obj['group'] = hgroup;
+				appectTalk_.push(obj);
+				acceptTalk_container.height +=50;
+				acceptTalk_container.addElement(hgroup);
+			}
+			
+			protected function addNewComTalkUI(t:String="",w:String="npc"):void
+			{
+				var obj:Object = {};
+				var hgroup:HGroup = new HGroup();
+				
+				var combo:ComboBox = new ComboBox();
+				var complexDP:ArrayCollection = new ArrayCollection(
+					[    {txt:"npc说：", type:"npc"}, 
+						{txt:"玩家说：", type:"player"}, 
+					]                
+				); 
+				combo.dataProvider = complexDP;
+				combo.labelField = "txt";
+				combo.selectedIndex = w=="npc"?0:1;
+				hgroup.addElement(combo);
+				obj['combo'] = combo;
+				
+				var text:TextArea = new TextArea();
+				text.width = 200;
+				text.height = 50;
+				text.text = t;
+				hgroup.addElement(text);
+				obj['text'] = text;
+				
+				var label:Label = new Label();
+				label.text="  播放视屏";
+				hgroup.addElement(label);
+				var check:CheckBox = new CheckBox();
+				hgroup.addElement(check);
+				obj["check"] = check;
+				
+				obj['group'] = hgroup;
+				comTalk_.push(obj);
+				talk_dialog_container.height +=50;
+				talk_dialog_container.addElement(hgroup);
+			}
+			
+			protected function onAddRewardItem(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				addRewardItemUI();
+			}
+			
+			protected function onAddReward(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				addRewardUI();
+			}
+			
+			protected function onAddAcceptTalk(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				addNewAcceptTalkUI();
+			}
+			
+			protected function onAddComTalk(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				addNewComTalkUI();
+			}
+			
+			protected function onIdfocusOut(event:Event):void
+			{
+				
+				var xmlList:XMLList = taskItemList_.source.(@id==task_id.text);
+				if(xmlList[1]!=undefined)
+				{
+					var str:String = "id【"+task_id.text+"】同名，任务名分别为：";
+					for each(var xml:XML in xmlList)
+					{
+						str+="【"+xml.@name+"】";
+					}
+					Alert.show(str);
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:HGroup id="container" x="10" y="30" width="100%" height="100%" contentBackgroundColor="#FFFFFF"
+			  requestedColumnCount="2">
+		<s:VGroup width="300" height="100%">
+			<s:HGroup width="300">
+				<s:Button label="添加" click="addNewItem(event)" />
+				<s:Button label="删除"/>
+			</s:HGroup>
+			<s:List id="taskContainer" height="90%" width="300" labelField="@name" change="taskItemSelectChanged(event)" dataProvider="{taskItemList_}" />			
+		</s:VGroup>
+		<s:HGroup>
+			<s:Form>
+				<s:FormItem>
+					<s:Button label="保存" height="20" click="saveNewItem(event)"/>
+				</s:FormItem>
+				<s:Label  text="任务信息" height="20"></s:Label>
+				<s:FormItem label="任务ID:" height="20">
+					<s:TextInput id="task_id" text="{currentTask_.@id}" focusOut="onIdfocusOut(event)" change="{currentTask_.@id=int(task_id.text)}"  restrict="0-9"/>
+				</s:FormItem>
+				<s:FormItem label="任务等级:" height="20">
+					<s:DropDownList id="task_level" dataProvider="{taskLevelCollection_}" labelField="@name" change="{currentTask_.@task_level=int(task_level.selectedItem.@ident)}" />
+				</s:FormItem>
+				<s:FormItem label="任务类型:" height="20">
+					<s:DropDownList id="task_type"  dataProvider="{taskTypeCollection_}" labelField="@name" change="{currentTask_.@task_type=int(task_type.selectedItem.@ident)}" />
+				</s:FormItem>
+				<s:FormItem label="特殊任务:" height="20">
+					<s:CheckBox id="task_special" selected="{int(currentTask_.@task_special) > 0}" change="{currentTask_.@task_special=int(task_special.selected)}" />
+				</s:FormItem>
+				<s:FormItem label="任务名称:" height="40">
+					<s:TextInput id="task_name" width="296" text="{currentTask_.@name}" change="{currentTask_.@name=task_name.text}" />
+				</s:FormItem>
+				
+				<s:Label  text="领取判断" height="20"></s:Label>
+				<s:FormItem label="前置任务ID:" height="20">
+					<s:TextInput id="parent_task_id" text="{currentTask_.@parent_task_id}" change="{currentTask_.@parent_task_id=parent_task_id.text}" restrict="0-9\;"/>
+				</s:FormItem>
+				<s:FormItem label="等级条件:" height="20">
+					<s:TextInput id="level_required" text="{currentTask_.@level_required}" change="{currentTask_.@level_required=int(level_required.text)}" restrict="0-9"/>
+				</s:FormItem>
+				<s:FormItem label="职业条件:" height="20">
+					<s:DropDownList id="job_type" dataProvider="{jobTypeCollection_}" labelField="@name" selectedIndex="0" change="{currentTask_.@job_type=int(job_type.selectedItem.@ident)}" />
+				</s:FormItem>
+				<s:FormItem label="帮派条件:" height="20">
+					<s:CheckBox id="party_required" selected="{int(currentTask_.@party_required) > 0}" change="{currentTask_.@party_required=int(party_required.selected)}" />
+				</s:FormItem>
+				<s:FormItem label="性别:" height="20">
+					<s:DropDownList id="sex_required" dataProvider="{sexCollection_}" labelField="@name" change="{currentTask_.@sex_required=int(sex_required.selectedItem.@ident)}" />
+				</s:FormItem>
+				<s:FormItem label="任务描述:" height="40">
+					<s:TextArea id="task_desc" width="296"  height="46" text="{currentTask_.desc}" change="{currentTask_.desc=task_desc.text}" />
+				</s:FormItem>
+				<s:FormItem label="领取NPC:" height="20">
+					<s:TextInput id="draw_npc_id" text="{currentTask_.@draw_npc_id}" change="{currentTask_.@draw_npc_id=int(draw_npc_id.text)}" restrict="0-9"/>
+				</s:FormItem>
+				<s:FormItem label="领取地图ID:" height="20">
+					<s:TextInput id="begin_map_id" text="{currentTask_.@begin_map_id}" change="{currentTask_.@begin_map_id=int(begin_map_id.text)}" restrict="0-9" />
+				</s:FormItem>
+				<s:FormItem label="领取对话:" height="30">
+					<s:Button label="增加领取对话" click="onAddAcceptTalk(event)"/>
+				</s:FormItem>
+				<s:FormItem width="403"  >
+					<s:VGroup id="acceptTalk_container" width="302" height="20">
+					</s:VGroup>
+				</s:FormItem>
+				
+				<s:Label  text="完成任务" height="20"></s:Label>
+				<s:FormItem label="任务进行地图：" height="20">
+					<s:TextInput id="tasking_map_id" text="{currentTask_.@tasking_map_id}" change="{currentTask_.@tasking_map_id=int(tasking_map_id.text)}" restrict="0-9"/>
+				</s:FormItem>
+				<s:FormItem label="传送点：" height="20">
+					<s:TextInput id="transfer_point_id" text="{currentTask_.@transfer_point_id}" change="{currentTask_.@transfer_point_id=transfer_point_id.text}" restrict="0-9\-"/>
+				</s:FormItem>
+				<s:FormItem label="副本地图ID：" height="20">
+					<s:TextInput id="atlas_id" text="{currentTask_.@atlas_id}" change="{currentTask_.@atlas_id=int(atlas_id.text)}" restrict="0-9"/>
+				</s:FormItem>
+				
+				<s:FormItem label="完成NPC:" height="20">
+					<s:TextInput id="complete_npc_id" text="{currentTask_.@complete_npc_id}" change="{currentTask_.@complete_npc_id=int(complete_npc_id.text)}" restrict="0-9"/>
+				</s:FormItem>
+				<s:FormItem label="完成地图ID:" height="20">
+					<s:TextInput id="target_map_id" text="{currentTask_.@target_map_id}" change="{currentTask_.@target_map_id=int(target_map_id.text)}" restrict="0-9" />
+				</s:FormItem>
+				<s:FormItem label="完成对话:" height="40">
+					<s:Button label="增加完成对话" click="onAddComTalk(event)"/>
+				</s:FormItem>
+				<s:FormItem width="403"  >
+					<s:VGroup id="talk_dialog_container" width="302" height="20">
+					</s:VGroup>
+				</s:FormItem>
+				
+				
+				
+				<s:FormItem label="任务目标:" height="20">
+					<s:HGroup width="100%" paddingTop="3">
+						<s:DropDownList id="target_type" change="taskTargetTypeChanged(event)"
+										dataProvider="{taskTargetTypeCollection_}" labelField="@name" />
+						<s:HGroup id="target_type_param_group_1" width="100" visible="false">
+							<s:Label id="target_type_param_1_label" fontSize="15" text=""
+									 verticalAlign="middle"/>
+							<s:TextInput id="target_type_param_1_input" width="50" text="" restrict="0-9"/>
+						</s:HGroup>
+						<s:HGroup id="target_type_param_group_2" width="100" visible="false">
+							<s:Label id="target_type_param_2_label" height="25" fontSize="15" text=""
+									 verticalAlign="middle"/>
+							<s:TextInput id="target_type_param_2_input" width="50" text="" restrict="0-9"/>
+						</s:HGroup>
+						<s:HGroup id="target_type_param_group_3" width="100" visible="false">
+							<s:Label id="target_type_param_3_label" fontSize="15" text="" verticalAlign="middle"/>
+							<s:TextInput id="target_type_param_3_input" width="50" text="" restrict="0-9"/>
+						</s:HGroup>
+					</s:HGroup>
+				</s:FormItem>
+				<s:FormItem label="是否立即完成:" height="20">
+					<s:CheckBox id="finish_immediate" selected="{int(currentTask_.@finish_immediate) > 0}" change="{currentTask_.@finish_immediate=int(finish_immediate.selected)}" />
+				</s:FormItem>
+				<s:FormItem label="是否可以用元宝立即完成:" height="20">
+					<s:CheckBox id="can_golden_finish" selected="{int(currentTask_.@can_golden_finish) > 0}" change="{currentTask_.@can_golden_finish=int(can_golden_finish.selected)}" />
+				</s:FormItem>
+				<s:FormItem label="任务奖励:">
+					<s:HGroup width="100%"  height="20" paddingLeft="5" paddingTop="3">
+						<s:Button label="添加道具" click="onAddRewardItem(event)"/>
+						<s:Button label="添加奖励" click="onAddReward(event)"/>
+					</s:HGroup>		
+				</s:FormItem>
+				<s:FormItem>
+					<s:VGroup id="reward_container" width="656" paddingLeft="30">						
+					</s:VGroup>
+				</s:FormItem>				
+			</s:Form>
+		</s:HGroup>
+	</s:HGroup>
+</mx:Canvas>

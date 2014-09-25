@@ -1,0 +1,342 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   implements="com.uqee.xajh.editor.IEditor"
+		   width="100%" height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.crypto.MD5;
+			import com.adobe.crypto.MD5Stream;
+			import com.uqee.xajh.XMLManager;
+			import com.uqee.xajh.editor.XMLFileUtil;
+			
+			import flash.sampler.NewObjectSample;
+			
+			import mx.charts.renderers.DiamondItemRenderer;
+			import mx.collections.*;
+			import mx.controls.Alert;
+			import mx.events.MenuEvent;
+			
+			import spark.components.FormItem;
+			import spark.components.Label;
+			import spark.events.IndexChangeEvent;
+			
+			[Bindable]
+			public var itemList_:XMLListCollection = new XMLListCollection();
+			
+			[Bindable]
+			public var currentItem_:XML = <Npc/>;
+			
+			static private const PATH_LOG:String = "log"
+			
+			static private const FILENAME:String = "Npc.xml"; 
+			static private const ROOT_XML:XML = <Npc/>;
+			static private const XML_NODE_NAME:String = "npc";
+			static private const LOACAL_PATH:String = "/../../../../multilateral/";
+			static private const TO_PATH:String = "/resource/staticdata/staticdata_debug/";
+			
+			static private const WORLD_PATH:String="/../../world/world_setting/";
+			static private const TO_WORLD_PATH:String="/resource/world/world_setting/";
+			
+			static private const TEXT_PATH:String="/../../text/text_debug/";
+			static private const TO_TEXT_PATH:String="/resource/text/text_debug/";
+			//static private const XML_PATH:String = "/../";
+			
+			static private const SCRIPT_PATH:String="/script/staticdata/";
+			
+			private var listNameArr:Vector.<Array>;
+			private var curFile:File;
+			
+			
+			public function save(dir:File):void {
+			}
+			
+			private function saveStr(str:String,fileobj:File):void
+			{
+				var filename:String = fileobj.nativePath;
+				var file:File = new File(filename);
+				var fs:FileStream = new FileStream();
+				fs.open(file, FileMode.WRITE);
+				fs.writeUTFBytes(str);
+				fs.close();
+				
+				txt.text += "\n已导出："+ filename;
+				_outNum++;
+			}
+			
+			public function load(dir:File):void {
+				var filename:String = dir.nativePath + "/" + FILENAME;
+				
+				
+				
+				curFile =  dir;
+				var file:File = new File(filename);
+				var xml:XML = XMLFileUtil.getXmlFile(file);
+				if (xml) {
+					itemList_.source = xml[XML_NODE_NAME];
+				}
+			}
+			
+			public function init():void
+			{ 
+				initList();
+				initUI();
+				txt.editable = false;
+			} 
+			
+			
+			private function initList():void
+			{
+				listNameArr = new Vector.<Array>;
+				
+			}
+			
+			private function initUI():void
+			{
+				
+			}
+			
+			private function displayItem(item:XML):void
+			{		
+				var helpStr:String;
+				for(var i:int=0;i<listNameArr.length;i++)
+				{
+					helpStr = listNameArr[i][1];
+					if(!item.@[helpStr])
+						continue;
+					
+					Label(listNameArr[i][2]).text = item.@[helpStr];
+					
+				}	
+			}
+			
+			private var _outNum:int =0;
+			protected function buildAllXMl(event:MouseEvent):void 
+			{
+				txt.text +="\n开始导出:["+cb.selectedItem["ingredient"]+"]本地化资源";
+				_outNum=0;
+				//var filename:String = curFile.nativePath + LOACAL_PATH+cb.selectedItem["tw_resource"];
+				var floderName:String = cb.selectedItem["foldername"];
+				var xmlFle:File = new File(curFile.nativePath+LOACAL_PATH+floderName+"/"+cb.selectedItem["poolname"]);
+				
+				var xml:XML;
+				if(!xmlFle.exists)
+					return;
+				try
+				{
+					var fs:FileStream = new FileStream();
+					fs.open( xmlFle, FileMode.READ );
+					var str:String = fs.readUTFBytes( fs.bytesAvailable );
+					xml = new XML(str);
+					fs.close();
+				}catch(e:Error) {
+					Alert.show(xmlFle.nativePath +"\n"+e.message);
+				}
+				
+				var neddTransD:Dictionary =new Dictionary();
+				var type:String = cb.selectedItem["type"];
+				var tofloder:String = curFile.nativePath+LOACAL_PATH+floderName+TO_PATH;
+				
+				if(curFile.isDirectory)  
+				{ //指示是否为对目录的引用。如果 File 对象指向一个目录，则该值为 true；否则为 false  
+					var arr:Array=curFile.getDirectoryListing();//getDirectoryListing()返回与此 File 对象表示的目录下的文件和目录对应的 File 对象的数组。此方法不浏览子目录的内容。   
+					for each(var file:File in arr){//File 对象表示文件或目录的路径(既可以是文件也可以是路径)  
+						if(!file.isDirectory && file.name!="keyword.xml")  
+						{  
+							trace(file.name)
+							buildXMl(file,xml,tofloder,neddTransD,2);
+						}
+					} 
+				}  
+				
+				//world文件夹
+				var filename:String = curFile.nativePath+ WORLD_PATH;
+				var worldfile:File = new File(filename);
+				tofloder = curFile.nativePath+LOACAL_PATH+floderName+TO_WORLD_PATH+"/";
+				
+				if(worldfile.isDirectory)  
+				{ //指示是否为对目录的引用。如果 File 对象指向一个目录，则该值为 true；否则为 false  
+					arr=worldfile.getDirectoryListing();//getDirectoryListing()返回与此 File 对象表示的目录下的文件和目录对应的 File 对象的数组。此方法不浏览子目录的内容。   
+					for each(file in arr){//File 对象表示文件或目录的路径(既可以是文件也可以是路径)  
+						if(!file.isDirectory)  
+						{  
+							buildXMl(file,xml,tofloder,neddTransD,1);
+						}
+					} 
+				}  
+				
+				
+				
+				//text
+				filename = curFile.nativePath+ TEXT_PATH;
+				worldfile = new File(filename);
+				tofloder = curFile.nativePath+LOACAL_PATH+floderName+TO_TEXT_PATH+"/";
+				
+				if(worldfile.isDirectory)  
+				{ //指示是否为对目录的引用。如果 File 对象指向一个目录，则该值为 true；否则为 false  
+					arr=worldfile.getDirectoryListing();//getDirectoryListing()返回与此 File 对象表示的目录下的文件和目录对应的 File 对象的数组。此方法不浏览子目录的内容。   
+					for each(file in arr){//File 对象表示文件或目录的路径(既可以是文件也可以是路径)  
+						if(!file.isDirectory)  
+						{  
+							buildXMl(file,xml,tofloder,neddTransD);
+						}
+					} 
+				}  
+				
+				
+				
+				
+				var needTansXml:XML =new XML("<Translation/>");
+				for (var temp:String in neddTransD)
+				{
+					
+					str="<Translate desc=\""+temp+"\" trans=\""+temp+"\"/>";
+					trace(neddTransD[temp],str)
+					try {
+						xml= new XML(str);
+						needTansXml.appendChild(xml);
+					}
+					catch (e:Error) 
+					{
+						txt.text +="\n【错误】错误文件："+neddTransD[temp]+"   desc："+str+"   error:"+e.toString();
+					}
+					
+				}
+				
+				var needtransPath:File = new File(curFile.nativePath+LOACAL_PATH+floderName+"/needTans.xml");
+				saveStr(needTansXml.toXMLString(),needtransPath);
+				
+				txt.text +="\n导出完毕！已导出"+_outNum+"份XML文件！";
+				
+				
+				//script
+				var scriptfile:File = new File(curFile.nativePath+LOACAL_PATH+floderName+SCRIPT_PATH);
+				if(scriptfile.isDirectory)  
+				{ 
+					arr=scriptfile.getDirectoryListing();
+					var fileName:String;
+					var tempFile:File;
+					for each(file in arr){
+						if(!file.isDirectory)  
+						{  
+							try
+							{
+								fs = new FileStream();
+								fs.open( file, FileMode.READ );
+								str = fs.readUTFBytes( fs.bytesAvailable );
+								fs.close();
+							}catch(e:Error) {
+								Alert.show(xmlFle.nativePath +"\n"+e.message);
+							}
+							var reg:RegExp = new RegExp("//.+","ig");
+							str=str.split(reg).join("");
+							
+							fileName =curFile.nativePath+LOACAL_PATH+floderName+TO_PATH+file.name.replace(".txt","")+".xml";
+							tempFile = new File(fileName);
+							if(tempFile.exists)
+							{
+								var obj:*=	XMLFileUtil.scriptXml(tempFile,str);
+								if(obj is String)
+								{
+									txt.text +="\n"+obj;
+								}
+								else
+								{
+									saveStr(obj["xml"].toXMLString(),tempFile);
+									var vecStr:Vector.<String> = obj["vecstr"];
+									for(var i:int=0;i<vecStr.length;i++)
+									{
+										txt.text +=vecStr[i];
+									}
+									
+								}
+							}	
+							else
+								txt.text +="\n脚本路径错误："+fileName;
+						}
+					} 
+				} 
+				txt.text +="\n=================================================";
+			}
+			
+			protected function scriptXml(fromfile:File,script:String):void
+			{
+				
+			}
+			
+			protected function buildXMl(fromxmlfile:File,transXMl:XML,tofloder:String,neddTransD:Dictionary,regtype:int=3):void
+			{
+				var floderName:String = cb.selectedItem["foldername"];
+				var type:String = cb.selectedItem["type"];
+				var filename:String = tofloder+ fromxmlfile.name
+				
+				var fileNameArr:Array = fromxmlfile.name.split(".");
+				
+				var xmlFile:File = new File(filename);
+				
+				
+				
+				var str:String = XMLFileUtil.translate(fromxmlfile.nativePath,transXMl,neddTransD,regtype);
+				
+				if(str)
+				{
+					saveStr(str,xmlFile);
+					
+					
+					//	load(curFile);
+					//	Alert.show("更新完成！");
+				}
+				else
+				{
+					//Alert.show("更新失败！");
+				}
+				
+			}
+			
+			private function getFileStr(file:File):String
+			{
+				var str:String
+				try
+				{
+					var fs:FileStream = new FileStream();
+					fs.open( file, FileMode.READ );
+					str= fs.readUTFBytes( fs.bytesAvailable );
+					fs.close();
+				}catch(e:Error) {
+					Alert.show(file.nativePath +"\n"+e.message);
+				}
+				return str;
+			}
+			
+			[Bindable]
+			public var complexDP:ArrayCollection = new ArrayCollection(
+				[   
+					{ingredient:"台湾", foldername:"zh_tw_resource",poolname:"cn_to_tw.xml",type:"zh_tw"},
+				]                
+			);
+			
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	
+	<s:HGroup id="container" x="10" y="30" width="100%" height="100%" contentBackgroundColor="#FFFFFF"
+			  requestedColumnCount="2">
+		<s:VGroup width="605" height="680">
+			<s:TextArea id = "txt" width="618" height="345"/>
+			<s:Button label="build" click="buildAllXMl(event)" />
+			<s:ComboBox 
+				id="cb" 
+				dataProvider="{complexDP}" 
+				width="150" 
+				selectedIndex="0" 
+				labelField="ingredient"/>   
+			
+		</s:VGroup>
+		<s:HGroup>
+		</s:HGroup>
+	</s:HGroup>
+</mx:Canvas>

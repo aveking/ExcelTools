@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx" preinitialize="init();" width="1024" height="768">	
+	<fx:Script>
+		<![CDATA[
+			import com.uqee.xajh.ConfigVar;
+			import com.uqee.xajh.XMLManager;
+			import com.uqee.xajh.editor.XMLFileUtil;
+			import com.uqee.xajh.editor.IEditor;
+			import com.uqee.xajh.editor.item.ItemEditor;
+			import com.uqee.xajh.editor.map.MapEditor;
+			import com.uqee.xajh.editor.monster.MonsterEditor;
+			import com.uqee.xajh.editor.npc.NpcEditor;
+			import com.uqee.xajh.editor.task.TaskEditor;
+			import com.uqee.xajh.editor.utils.Translate;
+			import com.uqee.xajh.editor.utils.XmlCreat;
+			
+			import flash.filesystem.File;
+			import flash.utils.getDefinitionByName;
+			
+			import mx.collections.XMLListCollection;
+			import mx.controls.Alert;
+			import mx.events.MenuEvent;
+			
+			[Bindable]			
+			public var menuCollection_:XMLListCollection;
+			public var currentEditor_:IEditor;
+			public var editorCache_:Dictionary;
+			public var loaderContext_:LoaderContext = new LoaderContext( false, ApplicationDomain.currentDomain);
+			TaskEditor;
+			MapEditor;
+			NpcEditor;
+			ItemEditor;
+			MonsterEditor;
+			XmlCreat;
+			Translate;
+			
+			
+			public function init():void {
+				var menubarXML:XMLList = XMLFileUtil.getXML(File.applicationDirectory.nativePath + "/Menu.xml").menuitem;
+				XMLManager.instance.loadXML('EditorTypes.xml');
+				menuCollection_ = new XMLListCollection(menubarXML);
+				
+				editorCache_ = new Dictionary();
+				var temp:String = "excel_tools"+File.applicationDirectory.nativePath;
+				temp = temp.replace(" ", "");
+				temp = temp.split("\\").join("");
+				temp = temp.replace(":","");
+				var so:SharedObject = SharedObject.getLocal(temp);
+//				if(so.data.path==undefined)
+//					so = SharedObject.getLocal("excel_tools");
+				if(so.data.path!=undefined)
+				{
+					ConfigVar.RESOURCE_PATH = so.data.path;
+					Alert.show("已将工作路径设置为：\n" + ConfigVar.RESOURCE_PATH);
+				}else{
+					var e:MenuEvent = new MenuEvent("itemClick");
+					e.item = new XML("<menuitem label=\"设置目录\" data=\"set-path\" toggled=\"true\"/>");
+					menuItemClicked(e);
+				}
+			}
+		
+			public function menuItemClicked(event:MenuEvent):void {	
+				var clazz:String = event.item.@clazz;
+				if (clazz) {
+					content.removeAllChildren();
+					var file:File;
+
+					if (ConfigVar.RESOURCE_PATH.length > 0) {
+						file = new File(ConfigVar.RESOURCE_PATH);
+					}
+					if (currentEditor_ && file) {
+						currentEditor_.save(file);
+					}
+					currentEditor_ = editorCache_[clazz]; 
+					if (!currentEditor_) {
+						//try {
+							var clz:Class = flash.utils.getDefinitionByName(clazz) as Class;
+							currentEditor_ = new clz() as IEditor;
+							editorCache_[clazz] = currentEditor_;
+							content.addChild(currentEditor_ as DisplayObject);
+							currentEditor_.init();
+							if (file) {
+								currentEditor_.load(new File(ConfigVar.RESOURCE_PATH));							
+							}
+						//} catch (e:Error) {
+						//	Alert.show("Unable to load " + e.message);
+						//	return;
+						//}
+					} else {
+						if (file) {
+							currentEditor_.load(new File(ConfigVar.RESOURCE_PATH));							
+						}
+						content.addChild(currentEditor_ as DisplayObject);
+					}
+				}
+				var data:String = event.item.@data;
+				if (data == "set-path") {
+					var path:File = new File();
+					path.browseForDirectory("选组工作目录");
+					path.addEventListener(Event.SELECT, selectWorkingPath);
+				} else if (data == "save") {
+					if (currentEditor_) {						
+						if (ConfigVar.RESOURCE_PATH.length > 0) {
+							path = new File(ConfigVar.RESOURCE_PATH);
+							currentEditor_.save(path);
+						}
+					}
+				}
+			}
+			protected function selectWorkingPath(event:Event):void {
+				ConfigVar.RESOURCE_PATH = (event.target as File).nativePath;
+				
+				var temp:String = "excel_tools"+File.applicationDirectory.nativePath;
+				temp = temp.replace(" ","");
+				temp = temp.split("\\").join("");
+				temp = temp.replace(":","");
+				var so:SharedObject = SharedObject.getLocal(temp);
+				
+				so.data.path = ConfigVar.RESOURCE_PATH;
+				Alert.show("已将工作路径设置为（请勿将存放excelXml的目录设置为工作目录）：\n" + ConfigVar.RESOURCE_PATH);
+			}
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:MenuBar id="menuBar"
+				width="100%"
+				labelField="@label"
+				itemClick="menuItemClicked(event);"
+				dataProvider="{menuCollection_}">
+	</mx:MenuBar>
+	<mx:Canvas id="content"
+			   width="100%"
+			   height="100%">
+	</mx:Canvas>
+</s:WindowedApplication>

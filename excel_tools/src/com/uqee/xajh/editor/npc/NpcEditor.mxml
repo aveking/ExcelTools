@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   implements="com.uqee.xajh.editor.IEditor"
+		   width="100%" height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.uqee.xajh.XMLManager;
+			import com.uqee.xajh.editor.XMLFileUtil;
+			
+			import flash.sampler.NewObjectSample;
+			
+			import mx.collections.*;
+			import mx.controls.Alert;
+			import mx.events.MenuEvent;
+			
+			import spark.components.FormItem;
+			import spark.components.Label;
+			import spark.events.IndexChangeEvent;
+			
+			[Bindable]
+			public var itemList_:XMLListCollection = new XMLListCollection();
+			
+			[Bindable]
+			public var currentItem_:XML = <Npc/>;			
+			
+			static private const FILENAME:String = "Npc.xml"; 
+			static private const ROOT_XML:XML = <Npc/>;
+			static private const XML_NODE_NAME:String = "npc";
+			static private const XML_PATH:String = "/../../../../xajh_excel/";
+			
+			private var listNameArr:Vector.<Array>;
+			private var curFile:File;
+			
+			public function save(dir:File):void {
+				//				var filename:String = dir.nativePath + "/" + FILENAME;
+				//				var file:File = new File(filename);
+				//				var fs:FileStream = new FileStream();
+				//				fs.open(file, FileMode.WRITE);
+				//				fs.writeUTFBytes(xml.toXMLString());
+				//				fs.close();
+			}
+			
+			private function saveXMl(xml:XML):void
+			{
+				var filename:String = curFile.nativePath + "/" + FILENAME;
+				var file:File = new File(filename);
+				var fs:FileStream = new FileStream();
+				fs.open(file, FileMode.WRITE);
+				fs.writeUTFBytes(xml.toXMLString());
+				fs.close();
+			}
+			
+			public function load(dir:File):void {
+				var filename:String = dir.nativePath + "/" + FILENAME;
+				curFile =  dir;
+				var file:File = new File(filename);
+				var xml:XML = XMLFileUtil.getXmlFile(file);
+				if (xml) {
+					itemList_.source = xml[XML_NODE_NAME];
+				}
+			}
+			
+			public function init():void
+			{ 
+				initList();
+				initUI();
+			} 
+			
+			
+			private function initList():void
+			{
+				listNameArr = new Vector.<Array>;
+			
+			}
+			
+			private function initUI():void
+			{
+				var helpFormItem:FormItem;
+				var helpLabel:Label;
+				for(var i:int=0;i<listNameArr.length;i++)
+				{
+					helpFormItem = new FormItem();
+					helpFormItem.label = listNameArr[i][0];
+					helpFormItem.height = 20;
+					helpLabel = new Label();
+					helpLabel.width =500;
+					helpLabel.height = 18;
+					helpFormItem.addElement(helpLabel);
+					subItemContainer.addElement(helpFormItem);
+					
+					listNameArr[i][2] = helpLabel;
+				}
+			}
+			
+			private function displayItem(item:XML):void
+			{		
+				var helpStr:String;
+				for(var i:int=0;i<listNameArr.length;i++)
+				{
+					helpStr = listNameArr[i][1];
+					if(!item.@[helpStr])
+						continue;
+					
+					Label(listNameArr[i][2]).text = item.@[helpStr];
+					
+				}	
+			}
+			
+			protected function buildXMl(event:MouseEvent):void 
+			{
+				var filename:String = curFile.nativePath + XML_PATH + FILENAME;
+				trace(filename)
+				var xml:XML = XMLFileUtil.buildXML(filename,ROOT_XML)	;
+				if(xml)
+				{
+					saveXMl(xml);
+					load(curFile);
+					Alert.show("更新完成！");
+				}
+				else
+				{
+					Alert.show("更新失败！");
+				}
+				
+			}
+			
+			
+			protected function itemSelectChanged(event:IndexChangeEvent):void
+			{
+				currentItem_ = itemContainer.selectedItem;
+				this.displayItem(currentItem_);
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	
+	<s:HGroup id="container" x="10" y="30" width="100%" height="100%" contentBackgroundColor="#FFFFFF"
+			  requestedColumnCount="2">
+		<s:VGroup width="300" height="580">
+			<s:HGroup width="300">
+			</s:HGroup>
+			<s:List id="itemContainer" height="540" width="300" labelField="@NpcName" change="itemSelectChanged(event)" dataProvider="{itemList_}" />			
+			<s:Button label="build" click="buildXMl(event)" />
+		</s:VGroup>
+		<s:HGroup>
+			<s:Form id="subItemContainer">			
+			</s:Form>
+		</s:HGroup>
+	</s:HGroup>
+</mx:Canvas>

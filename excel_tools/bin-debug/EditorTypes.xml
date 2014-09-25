@@ -1,0 +1,84 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Type>
+	<Sex name="性别">
+		<Type ident="0" name="不限" />
+		<Type ident="1" name="男" />
+		<Type ident="2" name="女" />
+	</Sex>
+	<Job name="职业">
+		<Type ident="0" name="无" />
+		<Type ident="1" name="华山" />
+		<Type ident="2" name="日月" />
+		<Type ident="3" name="少林" />
+ 	</Job>
+	<Task name="任务类型">
+		<Type ident="1" name="主线任务" />
+		<Type ident="2" name="支线任务" />
+		<Type ident="3" name="师门任务" />
+		<Type ident="4" name="每日任务" />
+		<Type ident="5" name="帮会任务" />
+	</Task>
+	<TaskLevel name="任务级别">
+		<Level ident="1" name="白色" />
+		<Level ident="2" name="绿色" />
+		<Level ident="3" name="蓝色" />
+		<Level ident="4" name="紫色" />
+		<Level ident="5" name="金色" />
+	</TaskLevel>
+	<TaskTargetType name="任务目标类型">
+		<Target ident="1" name="对话任务" />
+		<Target ident="2" name="杀怪等级" />
+		<Target ident="4" name="道具需求任务" />
+		<Target ident="5" name="护送任务" />
+		<Target ident="6" name="使用道具任务" />
+		<Target ident="7" name="探索任务" />
+		<Target ident="8" name="使用技能" />
+		<Target ident="9" name="小游戏任务" />
+		<Target ident="10" name="问天任务" />
+		<Target ident="11" name="凤凰蛋任务" />
+		<Target ident="12" name="梅树充能任务" />
+		<Target ident="13" name="复活作物任务" />
+		<Target ident="14" name="土地种植任务" />
+		<Target ident="15" name="武道会任务" />
+		<Target ident="16" name="通天塔任务" />
+		<Target ident="17" name="帮会捐献任务" />
+		<Target ident="18" name="个人灵签任务" />
+		<Target ident="19" name="帮会锦囊任务" />
+		<Target ident="20" name="每日问答任务" />
+		<Target ident="21" name="元宝消费任务" />
+		<Target ident="22" name="门派boss任务" />
+		<Target ident="23" name="送花任务" />
+		<Target ident="24" name="加入门派任务" />
+		<Target ident="25" name="杀怪任务" />
+		<Target ident="26" name="强化装备" />
+		<Target ident="27" name="升级心法" />
+		<Target ident="28" name="浮屠塔任务" />
+		<Target ident="29" name="运镖任务" />
+		<Target ident="30" name="指定强化等级任务" />
+		<Target ident="31" name="登陆器登录" />
+	</TaskTargetType>
+	<TaskRewardType name="任务奖励类型">
+		<Reward ident="0" name="无" />
+		<Reward ident="1" name="经验值" />
+		<Reward ident="2" name="游戏币" />
+		<Reward ident="3" name="帮派经验" />
+		<Reward ident="4" name="绝学值" />
+	</TaskRewardType>
+	<Map name="副本地图类型">
+		<Type ident="1" name="公共地图" />
+		<Type ident="2" name="多人副本" />
+		<Type ident="3" name="单人副本 " />
+	</Map>
+	<MapObject>
+		<Type ident="1" name="传送点" />
+		<Type ident="2" name="复活点" />
+		<Type ident="3" name="登陆点" />
+		<Type ident="4" name="宝箱" />
+		<Type ident="5" name="怪物" />
+	</MapObject>
+	<MonsterRefresh>
+		<Type ident="1" name="创建刷新" />
+		<Type ident="2" name="定时间隔刷新" />
+		<Type ident="3" name="定时定点刷新" />
+	</MonsterRefresh>
+</Type>

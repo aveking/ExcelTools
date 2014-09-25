@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   implements="com.uqee.xajh.editor.IEditor"
+		   width="100%" height="100%">
+	<fx:Script>
+		<![CDATA[
+			import spark.components.Label;
+			import spark.components.FormItem;
+			import com.uqee.xajh.XMLManager;
+			import com.uqee.xajh.editor.XMLFileUtil;
+			
+			import mx.collections.*;
+			import mx.controls.Alert;
+			import mx.events.MenuEvent;
+			
+			import spark.events.IndexChangeEvent;
+			
+			[Bindable]
+			public var itemList_:XMLListCollection = new XMLListCollection();
+			
+			[Bindable]
+			public var currentItem_:XML = <Item/>;			
+			
+			static private const FILENAME:String = "Item.xml"; 
+			static private const ROOT_XML:XML = <Item/>;
+			static private const XML_NODE_NAME:String = "item";
+			
+			private var listNameArr:Vector.<Array>;
+			
+			private var curFile:File;
+			
+			public function save(dir:File):void {
+//				var filename:String = dir.nativePath + "/" + FILENAME;
+//				var file:File = new File(filename);
+//				var fs:FileStream = new FileStream();
+//				fs.open(file, FileMode.WRITE);
+//				fs.writeUTFBytes(xml.toXMLString());
+//				fs.close();
+			}
+			
+			private function saveXMl(xml:XML):void
+			{
+				var filename:String = curFile.nativePath + "/" + FILENAME;
+				var file:File = new File(filename);
+				var fs:FileStream = new FileStream();
+				try
+				{
+					fs.open(file, FileMode.WRITE);
+					fs.writeUTFBytes(xml.toXMLString());
+					fs.close();
+				}
+				catch (e:Error) {
+					Alert.show("发生错误：" + e.message);
+					return;
+				}
+			}
+			
+			public function load(dir:File):void {
+				var filename:String = dir.nativePath + "/" + FILENAME;
+				curFile =  dir;
+				var file:File = new File(filename);
+				var xml:XML = XMLFileUtil.getXmlFile(file);
+				if (xml) {
+					itemList_.source = xml[XML_NODE_NAME];
+				}
+			}
+			
+			public function init():void
+			{ 
+				initList();
+				initUI();
+			} 
+			
+			private function initList():void
+			{
+				listNameArr = new Vector.<Array>;
+				listNameArr.push(["id","id"]);
+				listNameArr.push(["物品名字","item_name"]);
+				listNameArr.push(["物品描述","description"]);
+				listNameArr.push(["icon","icon_file"]);
+				listNameArr.push(["卖店价值","value"]);			
+				listNameArr.push(["品质等级","quality"]);
+				listNameArr.push(["物品类型","item_type"]);
+				listNameArr.push(["是否绑定","is_band"]);
+				listNameArr.push(["可否销毁","can_deleted"]);
+				listNameArr.push(["可否买卖","can_sold"]);
+				listNameArr.push(["可否放入拍卖","can_ah"]);
+				listNameArr.push(["是否独占","is_exclusive"]);
+				listNameArr.push(["职业需求","profession_need"]);
+				listNameArr.push(["装备类型","equip_type"]);
+				listNameArr.push(["装备级别需求","level_need"]);
+				listNameArr.push(["种族部件ID（男）","race_equipid_male"]);
+				listNameArr.push(["种族部件ID（女）","race_equipid_female"]);
+				listNameArr.push(["装备性别需求","sex_need"]);
+				listNameArr.push(["套装ID","set_id"]);
+				listNameArr.push(["物理攻击增加","physics_attack"]);
+				listNameArr.push(["魔法攻击增加","magic_attack"]);
+				listNameArr.push(["物理防御强度","physics_defence"]);
+				listNameArr.push(["魔法防御增加","magic_defence"]);
+				listNameArr.push(["命中增加","hit"]);
+				listNameArr.push(["闪避增加","dodge"]);
+				listNameArr.push(["生命最大值增加","maxhp"]);
+				listNameArr.push(["攻击速度","attack_speed"]);
+				listNameArr.push(["移动速度","move_speed"]);
+				listNameArr.push(["体质","constitution"]);
+				listNameArr.push(["法术","intelligence"]);
+				listNameArr.push(["力量","strength"]);
+				listNameArr.push(["暴击等级","critical_level"]);
+				listNameArr.push(["韧性等级","toughness_level"]);
+				listNameArr.push(["暴击伤害提高","critical_damage"]);
+				listNameArr.push(["幸运伤害等级","lucky_damage_level"]);
+				listNameArr.push(["幸运防御等级","lucky_damage_denfence_level"]);
+				listNameArr.push(["幸运伤害提高","lucky_damage"]);
+				listNameArr.push(["可否随机","is_can_rand"]);
+				listNameArr.push(["随机品质","rand_quality"]);
+				listNameArr.push(["随机属性最小数量","rand_base_num"]);
+				listNameArr.push(["随机属性最大数量","max_rand_num"]);
+				listNameArr.push(["随机几率递减 x/10000","rand_rate_less"]);
+				listNameArr.push(["命中时声音前缀","hit_sound_post_prefix"]);
+				listNameArr.push(["命中时声音后缀","hit_sound_post_fix"]);
+				listNameArr.push(["带孔数量","socket_counts"]);
+			}
+			
+			private function initUI():void
+			{
+				var helpFormItem:FormItem;
+				var helpLabel:Label;
+				for(var i:int=0;i<listNameArr.length;i++)
+				{
+					helpFormItem = new FormItem();
+					helpFormItem.label = listNameArr[i][0];
+					helpFormItem.height = 20;
+					helpLabel = new Label();
+					helpLabel.width =500;
+					helpLabel.height = 18;
+					helpFormItem.addElement(helpLabel);
+					subItemContainer.addElement(helpFormItem);
+					
+					listNameArr[i][2] = helpLabel;
+				}
+			}
+			
+			private function displayNpcItem(item:XML):void
+			{
+				var helpStr:String;
+				for(var i:int=0;i<listNameArr.length;i++)
+				{
+					helpStr = listNameArr[i][1];
+					if(!item.@[helpStr])
+						continue;
+					
+					Label(listNameArr[i][2]).text = item.@[helpStr];
+					
+				}	
+			}
+			
+			protected function buildXMl(event:MouseEvent):void 
+			{
+				var filename:String = curFile.nativePath + "/../staticdata_xml/" + FILENAME;
+				var xml:XML = XMLFileUtil.buildXML(filename,ROOT_XML)	;
+				if(xml)
+				{
+					saveXMl(xml);
+					load(curFile);
+					Alert.show("更新完成！");
+				}
+				else
+				{
+					Alert.show("更新失败！");
+				}
+					
+			}
+			
+			
+			protected function npcItemSelectChanged(event:IndexChangeEvent):void
+			{
+				currentItem_ = itemContainer.selectedItem;
+				this.displayNpcItem(currentItem_);
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	
+	<s:HGroup id="container" x="10" y="30" width="100%" height="100%" contentBackgroundColor="#FFFFFF"
+			  requestedColumnCount="2">
+		<s:VGroup width="300" height="580">
+			<s:HGroup width="300">
+			</s:HGroup>
+			<s:List id="itemContainer" height="540" width="300" labelField="@item_name" change="npcItemSelectChanged(event)" dataProvider="{itemList_}" />			
+			<s:Button label="build" click="buildXMl(event)" />
+		</s:VGroup>
+		<s:HGroup>
+			<s:Form  id="subItemContainer">
+			</s:Form>
+		</s:HGroup>
+	</s:HGroup>
+</mx:Canvas>

@@ -1,0 +1,684 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 implements="com.uqee.xajh.editor.IEditor"
+		 width="100%" height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.uqee.xajh.ConfigVar;
+			import com.uqee.xajh.XMLManager;
+			import com.uqee.xajh.editor.XMLFileUtil;
+			
+			import mx.collections.XMLListCollection;
+			import mx.events.CloseEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.managers.PopUpManager;
+			import mx.utils.object_proxy;
+			
+			import spark.components.DropDownList;
+			import spark.events.IndexChangeEvent;
+			import spark.primitives.Rect;
+			[Bindable]
+			public var mapGroupItemList_:XMLListCollection = new XMLListCollection();
+			
+			[Bindable]
+			public var currentMapItemList_:XMLListCollection = new XMLListCollection();
+
+			[Bindable]
+			public var mapItemList_:XMLListCollection = new XMLListCollection();
+			
+			[Bindable]
+			public var mapTypeList_:XMLListCollection = new XMLListCollection();
+			
+			[Bindable]
+			public var objectTypeList_:XMLListCollection = new XMLListCollection();
+			
+			[Bindable]
+			public var objectList_:XMLListCollection = new XMLListCollection();
+			
+			[Bindable]
+			public var monsterRefreshTypeList_:XMLListCollection = new XMLListCollection();
+			
+			[Bindable]
+			public var currentMap_:XML = <Map/>;
+			
+			[Bindable]
+			public var currentObject_:XML = <Object />;
+			
+			[Bindable]
+			public var currentGroup_:XML;
+			
+			protected var mapView_:Sprite;
+			protected var stuffView_:Sprite;
+			
+			private var mazeCache_:Dictionary = new Dictionary();
+			
+			protected var isNewMap_:Boolean = false;
+			protected var isNewGroup_:Boolean = false;
+			protected var isNewObject_:Boolean = false;
+			static private var CELL_WIDTH:int = 30;
+			static private var CELL_HEIGHT:int = 30;
+			static private var MAP_FILENAME:String = "MapCfg.xml";
+			static private var GROUP_FILENAME:String = "MapGroup.xml";
+			
+			public function save(dir:File):void {
+				var mapGroup:XML = <MapGroup />;
+				for (var i:int = 0; i < mapGroupItemList_.length; ++i) {
+					if (int(mapGroupItemList_[i].@ident) == 0) {
+						continue;
+					}
+					mapGroup.appendChild(mapGroupItemList_[i]);
+				}
+				var mapItem:XML = <MapList />;
+				for (i = 0; i < mapItemList_.length; ++i) {
+					mapItem.appendChild(mapItemList_[i]);
+				}
+				var filename:String = dir.nativePath + "/" + GROUP_FILENAME;
+				var file:File = new File(filename);
+				var fs:FileStream = new FileStream();
+				fs.open(file, FileMode.WRITE);
+				fs.writeUTFBytes(mapGroup.toString());
+				fs.close();
+				filename = dir.nativePath + "/" + MAP_FILENAME;
+				file = new File(filename);
+				fs = new FileStream();
+				fs.open(file, FileMode.WRITE);
+				fs.writeUTFBytes(mapItem.toString());
+				fs.close();
+			}
+			
+			public function load(dir:File):void {
+				var filename:String = dir.nativePath + "/" + GROUP_FILENAME;
+				var file:File = new File(filename);
+				var xml:XML = XMLFileUtil.getXmlFile(file);				
+				if (xml && xml.Group) {					
+					mapGroupItemList_.source = xml.Group;
+				}
+				currentGroup_ = <Group ident="0" name="全部" />;
+				mapGroupItemList_.addItemAt(currentGroup_, 0);
+				filename = dir.nativePath + "/" + MAP_FILENAME;
+				file = new File(filename);
+				xml = XMLFileUtil.getXmlFile(file);
+				if (xml && xml.Map) {
+					mapItemList_.source = xml.Map;
+				}
+			}
+			
+			public function init():void {
+				var type:XML = XMLManager.instance.getXML("EditorTypes.xml");
+				mapTypeList_.source = type.Map.Type;
+				objectTypeList_.source = type.MapObject.Type;	
+				monsterRefreshTypeList_.source = type.MonsterRefresh.Type;
+			
+				mapView_ = new Sprite();
+				map_view.addChild(mapView_);
+				stuffView_ = new Sprite();
+				map_view.addChild(stuffView_);
+				
+				PopUpManager.addPopUp(window_add_new_map, this, true);
+				PopUpManager.removePopUp(window_add_new_map);
+				PopUpManager.addPopUp(window_new_group, this, true);
+				PopUpManager.removePopUp(window_new_group);
+				PopUpManager.addPopUp(map_object, this, true);
+				PopUpManager.removePopUp(map_object);
+			}
+			
+			protected function showMapItems():void {
+				currentMapItemList_.removeAll();
+				for (var i:int = 0; i < mapItemList_.length; ++i) {
+					if (currentGroup_.@ident == 0 || mapItemList_[i].@group == currentGroup_.@ident) {
+						currentMapItemList_.addItem(mapItemList_[i]);
+					}
+				}
+				currentMapItemList_.refresh();
+			}
+			
+			public function mapGroupItemSelectChanged(event:IndexChangeEvent):void {
+				currentGroup_ = map_group_container.selectedItem;
+				showMapItems();
+			}
+			
+			
+			
+			protected function addNewGroup_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				currentGroup_ = <Group />;
+				var ident:int = 1;
+				for(var i:int = 0; i < mapGroupItemList_.length; ++i) {
+					if (int(mapGroupItemList_[i].@ident) >= ident) {						
+						ident = int(mapGroupItemList_[i].@ident) + 1;
+					}
+				}
+				isNewGroup_ = true;
+				currentGroup_.@ident = ident;
+				PopUpManager.addPopUp(window_new_group, this, true);
+				PopUpManager.centerPopUp(window_new_group);				
+			}
+			
+			protected function editNewGroup_clickHandler(event:MouseEvent):void {
+				isNewGroup_ = false;
+				PopUpManager.addPopUp(window_new_group, this, true);
+				PopUpManager.centerPopUp(window_new_group);
+			}
+			
+			protected function delGroup_clickHandler(event:MouseEvent):void {
+				var ident:int = map_group_container.selectedItem.@ident;
+				if (ident == 0) {
+					return;
+				}
+				for (var i:int = 0; i < mapGroupItemList_.length; ++i) {
+					if (mapGroupItemList_[i].@ident == ident) {
+						mapGroupItemList_.removeItemAt(i);
+						break;
+					}
+				}
+				for (i = 0; i < mapItemList_.length;) {
+					if (mapItemList_[i].@group == ident) {
+						mapItemList_.removeItemAt(i);
+					} else {
+						++i;
+					}
+				}				
+				mapGroupItemList_.refresh();
+				showMapItems();
+			}			
+			
+			protected function addNewGroup_closeHandler(event:CloseEvent):void
+			{
+				// TODO Auto-generated method stub
+				PopUpManager.removePopUp(event.target as TitleWindow);
+			}
+			
+			protected function saveGroup_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				if (isNewGroup_) {
+					if (this.currentGroup_.@name) {
+						this.mapGroupItemList_.addItem(this.currentGroup_);
+						this.mapGroupItemList_.refresh();
+					}
+				}
+				PopUpManager.removePopUp(window_new_group);
+			}
+			
+			public function mapItemSelectChanged(event:IndexChangeEvent):void {
+				currentMap_ = map_container.selectedItem;
+				objectList_.source = currentMap_.Object;
+				objectList_.refresh();
+				if (ConfigVar.RESOURCE_PATH.length > 0) {
+					try {
+						var file:File = new File(ConfigVar.RESOURCE_PATH + "/Map/" + currentMap_.@maze_file);
+						this.readMazeFile(file);
+					} catch (e:Error) {						
+					}
+				}				
+				showMapView();
+			}
+			
+			protected function addNewMap_closeHandler(event:CloseEvent):void
+			{
+				// TODO Auto-generated method stub
+				PopUpManager.removePopUp(event.target as TitleWindow);
+			}
+			
+			protected function addMap_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				currentMap_ = <Map />;
+				var ident:int = 1;
+				for(var i:int = 0; i < mapItemList_.length; ++i) {	
+					if (int(mapItemList_[i].@ident) >= ident) {						
+						ident = int(mapItemList_[i].@ident) + 1;
+					}
+				}
+				isNewMap_ = true;
+				currentMap_.@ident = ident;
+				currentMap_.@group = currentGroup_.@ident;
+				currentMap_.@parent_map = 0;
+				currentMap_.@level_limit = 0;
+				showMapPopup();
+			}
+			
+			protected function delMap_clickHandler(event:MouseEvent):void {
+				var ident:int = map_container.selectedItem.@ident;
+				for (var i:int = 0; i < mapItemList_.length; ++i) {
+					if (mapItemList_[i].@ident == ident) {
+						mapItemList_.removeItemAt(i);
+						break;
+					}
+				}
+				mapItemList_.refresh();
+			}
+			
+			protected function editMap_clickHandler(event:MouseEvent):void {
+				isNewMap_ = false;
+				showMapPopup();
+			}
+			
+			protected function saveMap_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				if (isNewMap_) {
+					if (this.currentMap_.@name) {
+						this.mapItemList_.addItem(this.currentMap_);
+						this.mapItemList_.refresh();
+					}
+				}
+				showMapItems();
+				PopUpManager.removePopUp(window_add_new_map);
+				this.showMapView();
+			}
+			
+			protected function showMapPopup():void {
+				var selectIdx:int = 0;
+				for (var i:int = 0; i < mapTypeList_.length; ++i) {
+					if (int(mapTypeList_[i].@ident) == currentMap_.@type) {
+						selectIdx = i;
+						break;
+					}
+				}
+				map_type.selectedIndex =selectIdx;
+				selectIdx = 0;
+				for (i = 0; i < mapGroupItemList_.length; ++i) {
+					if (int(mapGroupItemList_[i].@ident) == int(currentMap_.@group)) {
+						selectIdx = i;
+						break;
+					}
+				}
+				map_category.selectedIndex = selectIdx;
+				selectIdx = 0;
+				for (i = 0; i < mapItemList_.length; ++i) {
+					if (int(currentMap_.@parent_map) == int(mapItemList_[i].@ident)) {
+						selectIdx = i;
+						break;
+					}
+				}
+				parent_map.selectedIndex = selectIdx;
+				PopUpManager.addPopUp(window_add_new_map, this, true);
+				PopUpManager.centerPopUp(window_add_new_map);
+			}
+			
+			protected function mapObject_closeHandler(event:CloseEvent):void
+			{
+				// TODO Auto-generated method stub
+				PopUpManager.removePopUp(map_object);
+			}
+			
+			protected function showAddMapObjectWindow():void {
+				var typeIdx:int = 0;
+				for (var i:int = 0; i < this.objectTypeList_.length; ++i) {
+					if (currentObject_.@type == objectTypeList_[i].@ident) {
+						typeIdx = i;
+						break;
+					}
+				}
+				map_object_type.selectedIndex = typeIdx;
+				switch (int(objectTypeList_[typeIdx].@ident)) {
+					case 1: //传送点
+						var selectIdx:int = 0;
+						for (i = 0; i < mapItemList_.length; ++i) {
+							if (mapItemList_[i].@ident == currentObject_.@to_map_id) {
+								selectIdx = i;
+								break;
+							}
+						}
+						to_map_id.selectedIndex = selectIdx;
+						break;
+					case 2: //复活点
+						break;
+					case 3: //登陆点
+						break;
+					case 4: //宝箱
+						break;
+					case 5: //怪物
+						selectIdx = 0;
+						for (i = 0; i < this.monsterRefreshTypeList_.length; ++i) {
+							if (monsterRefreshTypeList_[i].@ident == currentObject_.@refresh_type) {
+								selectIdx = i;
+								break;
+							}
+						}
+						break;
+				}
+				PopUpManager.addPopUp(map_object, this, true);
+				PopUpManager.centerPopUp(map_object);
+			}
+			
+			protected function objectList_changeHandler(event:IndexChangeEvent):void {
+				currentObject_ = stuff_list.selectedItem;
+				drawMapObject();
+			}
+			
+			protected function addMapObject_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				isNewObject_ = true;
+				var type:int = 1;
+				currentObject_ = <Object />;
+				currentObject_.@type = type;
+				map_object_type.enabled = true;
+				mapObjectTypeChange(type);				
+				showAddMapObjectWindow();
+			}
+			
+			protected function mapObjectTypeChange(id:int):void {
+				object_content.removeAllElements();							
+				switch (id) {
+					case 1:	//传送点					
+						object_content.addElement(transport_object_form);						
+						break;
+					case 2: //复活点
+						object_content.addElement(relive_object_form);							
+						break;
+					case 3: //登陆点
+						object_content.addElement(login_object_form);
+						break;
+					case 4: //宝箱
+						object_content.addElement(chest_object_form);
+						break;
+					case 5: //怪物
+						object_content.addElement(monster_object_form);
+						break;
+				}
+			}
+			
+			protected function mapObjectType_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				var id:int = int(map_object_type.selectedItem.@ident);
+				currentObject_.@type = id;
+				mapObjectTypeChange(id);				
+			}
+			
+			protected function saveObject_clickHandler(event:MouseEvent):void {
+				var name:String = map_object_type.selectedItem.@name;
+				name += "(" + currentObject_.@x + "," + currentObject_.@y + ")";
+				if (!isNewObject_) {
+					currentObject_.@name = name;
+				} else {
+					var object:XML = <Object />;
+					object.@type = map_object_type.selectedItem.@ident;					
+					object.@name = name;
+					object.@x = currentObject_.@x;
+					object.@y = currentObject_.@y;
+					switch (int(map_object_type.selectedItem.@ident)) {
+						case 1: //传送点
+							object.@to_map_id = currentObject_.@to_map_id;
+							object.@to_map_x = currentObject_.@to_map_x;
+							object.@to_map_y = currentObject_.@to_map_y;
+							break;
+						case 2: //复活点
+							break;
+						case 3: //登陆点
+							break;
+						case 4: //宝箱
+							object.@chest_id = currentObject_.@chest_id;
+							object.@chest_cont = currentObject_.@chest_count;
+							break;
+						case 5: //怪物
+							object.@monster_id = currentObject_.@monster_id;
+							object.@refresh_time = currentObject_.@refresh_time;
+							object.@refresh_type = currentObject_.@refresh_type;
+							object.@radius = currentObject_.@radius;
+							object.@number = currentObject_.@number;
+							break;
+					}
+					objectList_.addItem(object);
+					objectList_.refresh();
+				}
+				drawMapObject();
+				PopUpManager.removePopUp(map_object);
+			}
+			
+			protected function editMapObject_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				isNewObject_ = false;
+				map_object_type.enabled = false;
+				mapObjectTypeChange(int(currentObject_.@type));				
+				showAddMapObjectWindow();
+			}
+			
+			protected function drawMapObject():void {
+				stuffView_.graphics.clear();
+				if (!currentMap_) {
+					return;
+				}
+				if (!currentObject_) {
+					return;
+				}
+				var obj:Object = mazeCache_[int(currentMap_.@ident)];
+				if (!obj) {
+					return;
+				}				
+				var width:int = obj.width;
+				var height:int = obj.height;
+				var x:int = int(currentObject_.@x) * CELL_WIDTH + CELL_WIDTH / 2;
+				var y:int = int(currentObject_.@y) * CELL_HEIGHT + CELL_HEIGHT / 2;
+				stuffView_.graphics.beginFill(0x00ff00, 0.5);
+				stuffView_.graphics.drawCircle(x, y, CELL_WIDTH / 2);
+				stuffView_.graphics.endFill();
+				if (currentObject_.@type == 5) {
+					var radius:int = int(currentObject_.@radius);
+					var startX:int = Math.max(0, int(currentObject_.@x) - radius);
+					var endX:int = Math.min(width, int(currentObject_.@x) + radius);
+					var startY:int = Math.max(0, int(currentObject_.@y) - radius);
+					var endY:int = Math.min(height, int(currentObject_.@y) + radius);
+					for (var i:int = startY; i <= endY; ++i) {
+						for (var j:int = startX; j <= endX; ++j) {
+							var distance:int = Math.abs(int(currentObject_.@x) - j) + Math.abs(int(currentObject_.@y) - i);
+							if (distance > 1) {
+								distance -= 1;
+							}
+							if (distance <= radius) {
+								stuffView_.graphics.lineStyle(0, 0x000000, .75);
+								stuffView_.graphics.beginFill(0xff0000, 0.3);
+								stuffView_.graphics.drawRect(j * CELL_WIDTH, i * CELL_HEIGHT, CELL_WIDTH - 1, CELL_HEIGHT - 1);
+								stuffView_.graphics.endFill();
+							}
+						}
+					}
+				}
+			}
+			
+			protected function showMapView():void {
+				mapView_.graphics.clear();
+				if (!currentMap_) {
+					return;
+				}
+				var obj:Object = mazeCache_[int(currentMap_.@ident)];
+				if (!obj) {
+					return;
+				}				
+				var width:int = obj.width;
+				var height:int = obj.height;
+				mapView_.graphics.lineStyle(1, 0x000000, .75);
+				for (var i:int = 0; i < height; ++i) {
+					for (var j:int = 0; j < width; ++j) {
+						if ((obj.maze as ByteArray)[i * width + j] > 0) {
+							mapView_.graphics.beginFill(0xFF0000);
+						} else {
+							mapView_.graphics.beginFill(0xffffff);
+						}
+						mapView_.graphics.drawRect(j * CELL_WIDTH, i * CELL_HEIGHT, CELL_WIDTH - 1, CELL_HEIGHT - 1);
+						mapView_.graphics.endFill();
+					}
+				}
+			}
+			
+			protected function browserMazeFile_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var file:File = new File();
+				file.addEventListener(Event.SELECT, selectedMazeFile);
+				file.browseForOpen("选择阻挡信息文件", [new FileFilter("XML文件(*.dat)", "*.dat;*.DAT")]);
+			}
+			
+			protected function selectedMazeFile(event:Event):void {
+				var file:File = event.target as File;
+				currentMap_.@maze_file = file.name;
+				readMazeFile(file);
+			}
+			
+			protected function readMazeFile(file:File):void {
+				if (mazeCache_[currentMap_.@ident]) {
+					return;
+				}
+				var fs:FileStream = new FileStream();
+				fs.open(file, FileMode.READ);
+				fs.endian = Endian.LITTLE_ENDIAN;
+				var width:int = fs.readShort();
+				var height:int = fs.readShort();
+				var ba:ByteArray = new ByteArray();
+				mazeCache_[int(currentMap_.@ident)] = {"width":width, "height":height, "maze":ba};
+				fs.close();
+			}			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:HGroup id="container" x="10" y="30" width="100%" height="100%" contentBackgroundColor="#FFFFFF"
+			  requestedColumnCount="3">
+		<s:VGroup width="200" height="100%">
+			<s:Label text="分组:" />
+			<s:List id="map_group_container" labelField="@name" width="100%" height="30%"
+					change="mapGroupItemSelectChanged(event)" dataProvider="{mapGroupItemList_}" />
+			<s:HGroup width="100%" height="5%">
+				<s:Button label="添加组" click="addNewGroup_clickHandler(event)" width="60" height="40" />
+				<s:Button label="编辑" click="editNewGroup_clickHandler(event)" enabled="{map_group_container.selectedItem != null}" width="50" height="40" />
+				<s:Button label="删除" click="delGroup_clickHandler(event)" enabled="{map_group_container.selectedItem != null}" width="50" height="40" />
+			</s:HGroup>
+			<s:Label text="地图:" />
+			<s:List id="map_container" width="100%" height="60%"
+					change="mapItemSelectChanged(event)" labelField="@name" dataProvider="{currentMapItemList_}" />
+			<s:HGroup width="100%" height="5%">
+				<s:Button label="添加地图" click="addMap_clickHandler(event)" width="65" height="40" />
+				<s:Button label="编辑" click="{editMap_clickHandler(event)}" enabled="{map_container.selectedItem != null}" width="50" height="40" />
+				<s:Button label="删除" enabled="{map_container.selectedItem != null}" click="delMap_clickHandler(event)" width="50" height="40"/>
+			</s:HGroup>
+		</s:VGroup>
+		<s:VGroup width="200" height="100%">
+			<s:Label text="地图物体:" />
+			<s:List id="stuff_list" dataProvider="{objectList_}" change="objectList_changeHandler(event)" labelField="@name" width="200" height="95%">				
+			</s:List>
+			<s:HGroup width="200" height="5%">
+				<s:Button label="添加" click="addMapObject_clickHandler(event)" enabled="{map_container.selectedItem != null}" width="50" height="40" />
+				<s:Button label="编辑" click="editMapObject_clickHandler(event)" enabled="{stuff_list.selectedItem != null}" width="50" height="40" />
+				<s:Button label="删除" enabled="{stuff_list.selectedItem != null}" width="50" height="40" />
+			</s:HGroup>			
+		</s:VGroup>
+		<s:Group>
+				<mx:UIComponent id="map_view">					
+				</mx:UIComponent>
+		</s:Group>			
+	</s:HGroup>
+	<s:TitleWindow id="window_add_new_map" title="Add New Map" close="addNewMap_closeHandler(event)">
+		<s:Form>
+			<s:FormItem label="ID:">
+				<s:TextInput id="map_id" text="{currentMap_.@ident}" editable="false" change="{currentMap_.@ident=int(map_id.text)}" restrict="0-9" />
+			</s:FormItem>
+			<s:FormItem label="名称:">				
+				<s:TextInput id="map_name" text="{currentMap_.@name}" change="{currentMap_.@name=map_name.text}" />
+			</s:FormItem>
+			<s:FormItem label="地图类型:">
+				<s:DropDownList id="map_type" labelField="@name" dataProvider="{mapTypeList_}" change="{currentMap_.@type=map_type.selectedItem.@ident}" />
+			</s:FormItem>
+			<s:FormItem label="地图组:">
+				<s:DropDownList id="map_category" labelField="@name" dataProvider="{mapGroupItemList_}" change="{currentMap_.@group = map_category.selectedItem.@ident}" />
+			</s:FormItem>
+			<s:FormItem label="等级限制:">
+				<s:TextInput id="map_level_limit" text="{currentMap_.@level_limit}" change="{currentMap_.@level_limit = int(map_level_limit)}" restrict="0-9" />
+			</s:FormItem>
+			<s:FormItem label="前置副本:">
+				<s:DropDownList id="parent_map" labelField="@name" dataProvider="{mapItemList_}" change="{currentMap_.@parent_map = int(parent_map.selectedItem.@ident)}" />
+			</s:FormItem>
+			<s:FormItem label="阻挡信息:">
+				<s:HGroup>
+					<s:TextInput editable="false" text="{currentMap_.@maze_file}" />
+					<s:Button label="浏览..." click="browserMazeFile_clickHandler(event)" />
+				</s:HGroup>
+			</s:FormItem>
+			<s:FormItem>
+				<s:Button label="保存" click="saveMap_clickHandler(event)" />
+			</s:FormItem>
+		</s:Form>
+	</s:TitleWindow>
+	<s:TitleWindow id="window_new_group" title="Add New Group" close="addNewGroup_closeHandler(event)">
+		<s:Form>
+			<s:FormItem label="ID:">
+				<s:TextInput id="group_id" text="{currentGroup_.@ident}" editable="false" change="{currentGroup_.@ident=int(group_id.text)}" restrict="0-9" />
+			</s:FormItem>
+			<s:FormItem label="名称:">
+				<s:TextInput id="group_name" text="{currentGroup_.@name}" change="{currentGroup_.@name=group_name.text}" />
+			</s:FormItem>
+			<s:FormItem>
+				<s:Button label="保存" click="saveGroup_clickHandler(event)" />
+			</s:FormItem>
+		</s:Form>
+	</s:TitleWindow>
+	<s:TitleWindow id="map_object" title="Add New Object" close="mapObject_closeHandler(event)">
+		<s:VGroup>
+			<s:Form>
+				<s:FormItem label="物体类型:">
+					<s:DropDownList id="map_object_type" dataProvider="{objectTypeList_}" labelField="@name" change="mapObjectType_changeHandler(event)" />
+				</s:FormItem>
+				<s:FormItem label="坐标 x:">
+					<s:TextInput id="object_x" text="{currentObject_.@x}" change="{currentObject_.@x = int(object_x.text)}" restrict="0-9" />
+				</s:FormItem>
+				<s:FormItem label="坐标 y:">
+					<s:TextInput id="object_y" text="{currentObject_.@y}" change="{currentObject_.@y = int(object_y.text)}" restrict="0-9" />
+				</s:FormItem>
+			</s:Form>	
+			<s:VGroup id="object_content">
+				<s:Form id="transport_object_form">
+					<s:FormItem label="目标地图:">
+						<s:DropDownList id="to_map_id" dataProvider="{mapItemList_}" labelField="@name" change="currentObject_.@to_map_id = int(to_map_id.selectedItem.@ident)" />
+					</s:FormItem>
+					<s:FormItem label="目标地图 x:">
+						<s:TextInput id="to_map_x" text="{currentObject_.@to_map_x}" change="{currentObject_.@to_map_x = int(to_map_x.text)}" restrict="0-9" />
+					</s:FormItem>
+					<s:FormItem label="目标地图 y:">							
+						<s:TextInput id="to_map_y" text="{currentObject_.@to_map_y}" change="{currentObject_.@to_map_y = int(to_map_y.text)}" restrict="0-9" />
+					</s:FormItem>
+				</s:Form>
+				<s:Form id="relive_object_form">
+				</s:Form>
+				<s:Form id="login_object_form">				
+				</s:Form>
+				<s:Form id="chest_object_form">
+					<s:FormItem label="宝箱ID:">
+						<s:TextInput id="chest_id" text="{currentObject_.@chest_id}" change="{currentObject_.@chest_id = int(chest_id.text)}" />
+					</s:FormItem>
+					<s:FormItem label="宝箱个数:">
+						<s:TextInput id="chest_count" text="{currentObject_.@chest_count}" change="{currentObject_.@chest_count = int(chest_count.text)}" />
+					</s:FormItem>
+				</s:Form>
+				<s:Form id="monster_object_form">
+					<s:FormItem label="刷新方式:">
+						<s:DropDownList id="refresh_type" dataProvider="{monsterRefreshTypeList_}" labelField="@name" change="currentObject_.@refresh_type = int(refresh_type.selectedItem.@ident)" />
+					</s:FormItem>
+					<s:FormItem label="时间值:">
+						<s:TextInput id="refresh_time" text="{currentObject_.@refresh_time}" change="{currentObject_.@refresh_time = int(refresh_time.text)}" />
+					</s:FormItem>
+					<s:FormItem label="怪物ID:">
+						<s:TextInput id="monster_id" text="{currentObject_.@monster_id}" change="{currentObject_.@monster_id=int(monster_id.text)}" />
+					</s:FormItem>
+					<s:FormItem label="半径:">
+						<s:TextInput id="monster_radius" text="{currentObject_.@radius}" change="{currentObject_.@radius = int(monster_radius.text)}" />
+					</s:FormItem>
+					<s:FormItem label="个数:">
+						<s:TextInput id="monster_number" text="{currentObject_.@number}" change="{currentObject_.@number = int(monster_number.text)}" />
+					</s:FormItem>
+				</s:Form>
+			</s:VGroup>
+			<s:Form>
+				<s:FormItem>
+					<s:Button label="保存" click="saveObject_clickHandler(event)" />
+				</s:FormItem>
+			</s:Form>			
+		</s:VGroup>
+	</s:TitleWindow>	
+</mx:Canvas>

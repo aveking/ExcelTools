@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<menu>
+	<menuitem label="文件" data="">
+		<menuitem label="地图" data="editor" clazz="com.uqee.xajh.editor.map.MapEditor" />
+		<menuitem label="地图对象" data="">
+			<menuitem label="Npc" data="editor" clazz="com.uqee.xajh.editor.npc.NpcEditor" />
+			<menuitem label="怪物" data="editor" clazz="com.uqee.xajh.editor.monster.MonsterEditor" />
+		</menuitem>
+		<menuitem type="separator" data="" />
+		<menuitem label="物品" data="editor" clazz="com.uqee.xajh.editor.item.ItemEditor" />
+		<menuitem type="separator" data="" />
+		<menuitem label="任务" data="editor" clazz="com.uqee.xajh.editor.task.TaskEditor" />
+		<menuitem type="separator" data="" />
+		<menuitem label="保存" data="save" />
+	</menuitem>
+	<menuitem label="工具" data="">
+		<menuitem label="批量导出xml和php"  clazz="com.uqee.xajh.editor.utils.XmlCreat" />
+		<menuitem label="批量翻译xml"  clazz="com.uqee.xajh.editor.utils.Translate" />
+	</menuitem>
+	<menuitem label="编辑" data="">
+		<menuitem label="设置目录" data="set-path" />
+	</menuitem>
+	<menuitem label="关于" data="">
+		<menuitem label="版本：V1.0a" />
+	</menuitem>
+</menu>

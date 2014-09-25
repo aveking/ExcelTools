@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   implements="com.uqee.xajh.editor.IEditor"
+		   width="100%" height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.uqee.xajh.XMLManager;
+			import com.uqee.xajh.editor.XMLFileUtil;
+			
+			import flash.sampler.NewObjectSample;
+			
+			import mx.collections.*;
+			import mx.controls.Alert;
+			import mx.events.MenuEvent;
+			
+			import spark.components.FormItem;
+			import spark.components.Label;
+			import spark.events.IndexChangeEvent;
+			
+			[Bindable]
+			public var itemList_:XMLListCollection = new XMLListCollection();
+			
+			[Bindable]
+			public var currentItem_:XML = <Item/>;			
+			
+			static private const FILENAME:String = "Monster.xml"; 
+			static private const ROOT_XML:XML = <Monsters/>;
+			static private const XML_NODE_NAME:String = "monster";
+			static private const XML_PATH:String = "/../../../../xajh_excel/";
+			
+			private var listNameArr:Vector.<Array>;
+			private var curFile:File;
+			
+			public function save(dir:File):void {
+				//				var filename:String = dir.nativePath + "/" + FILENAME;
+				//				var file:File = new File(filename);
+				//				var fs:FileStream = new FileStream();
+				//				fs.open(file, FileMode.WRITE);
+				//				fs.writeUTFBytes(xml.toXMLString());
+				//				fs.close();
+			}
+			
+			private function saveXMl(xml:XML):void
+			{
+				var filename:String = curFile.nativePath + "/" + FILENAME;
+				var file:File = new File(filename);
+				var fs:FileStream = new FileStream();
+				fs.open(file, FileMode.WRITE);
+				fs.writeUTFBytes(xml.toXMLString());
+				fs.close();
+			}
+			
+			public function load(dir:File):void {
+				var filename:String = dir.nativePath + "/" + FILENAME;
+				curFile =  dir;
+				var file:File = new File(filename);
+				var xml:XML = XMLFileUtil.getXmlFile(file);
+				if (xml) {
+					itemList_.source = xml[XML_NODE_NAME];
+				}
+			}
+			
+			public function init():void
+			{ 
+				initList();
+				initUI();
+			} 
+			
+			
+			private function initList():void
+			{
+				listNameArr = new Vector.<Array>;
+				listNameArr.push(["怪物索引","monster_id"]);
+				listNameArr.push(["怪物名","monster_name"]);
+				listNameArr.push(["等级","monster_lv"]);
+				listNameArr.push(["怪物称号","monster_title"]);
+				listNameArr.push(["攻击类型","monsterprofession"]);	
+				listNameArr.push(["模型路径","model_path"]);						
+				listNameArr.push(["攻击声音","attack_soundPrefix"]);
+				listNameArr.push(["怪物强度","pow"]);
+				listNameArr.push(["体型修正","body"]);
+				listNameArr.push(["Hp上限","hpmax"]);
+				listNameArr.push(["攻击速度","attack_speed"]);
+				listNameArr.push(["攻击距离","attack_range"]);
+				listNameArr.push(["暴击等级","critical_level"]);
+				listNameArr.push(["韧性等级(防暴击)","toughness_level"]);
+				listNameArr.push(["命中等级","hit_level"]);
+				listNameArr.push(["闪避等级","dodge_level"]);
+				listNameArr.push(["暴击伤害提高","critical_damage"]);
+				listNameArr.push(["物理攻击力","physics_attack"]);
+				listNameArr.push(["物理防御力","physics_defence"]);
+				listNameArr.push(["法术攻击力","magic_attack"]);
+				listNameArr.push(["法术防御力","magic_defence"]);
+				listNameArr.push(["神圣伤害等级","lucky_damage_level"]);
+				listNameArr.push(["神圣防御等级","lucky_damage_denfence_level"]);
+				listNameArr.push(["战斗视野","fight_shot"]);
+				listNameArr.push(["追击时间","chase_time"]);
+				listNameArr.push(["使用的技能1","useskill1"]);
+				listNameArr.push(["使用的技能2","useskill2"]);
+				listNameArr.push(["使用的技能3","useskill3"]);
+				listNameArr.push(["技能1使用概率","chance_of_skill1"]);
+				listNameArr.push(["技能2使用概率","chance_of_skill2"]);
+				listNameArr.push(["技能3使用概率","chance_of_skill3"]);
+				listNameArr.push(["是否主动","if_initiative"]);
+				listNameArr.push(["仇恨个数","enmity_max"]);
+				listNameArr.push(["怪物皮肤","monster_skin"]);
+				listNameArr.push(["怪物透明度","monster_alpha"]);
+				listNameArr.push(["复活时间","revive_time"]);
+				listNameArr.push(["是否消失","if_disappear"]);
+				listNameArr.push(["消失时间","disappear_time"]);
+				listNameArr.push(["战斗移动速度","move_speed"]);
+				listNameArr.push(["空闲移动速度","idle_move_speed"]);
+				listNameArr.push(["奔跑步长","run_step"]);
+				listNameArr.push(["行走步长","walk_step"]);
+				listNameArr.push(["仇恨比率","enemity_rate"]);
+				listNameArr.push(["视野触发仇恨初值","useskill1"]);
+				listNameArr.push(["怪物头像路径","head"]);
+			}
+			
+			private function initUI():void
+			{
+				var helpFormItem:FormItem;
+				var helpLabel:Label;
+				for(var i:int=0;i<listNameArr.length;i++)
+				{
+					helpFormItem = new FormItem();
+					helpFormItem.label = listNameArr[i][0];
+					helpFormItem.height = 20;
+					helpLabel = new Label();
+					helpLabel.width =500;
+					helpLabel.height = 18;
+					helpFormItem.addElement(helpLabel);
+					subItemContainer.addElement(helpFormItem);
+					
+					listNameArr[i][2] = helpLabel;
+				}
+			}
+			
+			private function displayItem(item:XML):void
+			{		
+				var helpStr:String;
+				for(var i:int=0;i<listNameArr.length;i++)
+				{
+					helpStr = listNameArr[i][1];
+					if(!item.@[helpStr])
+						continue;
+			
+					Label(listNameArr[i][2]).text = item.@[helpStr];
+					
+				}	
+			}
+			
+			protected function buildXMl(event:MouseEvent):void 
+			{
+				var filename:String = curFile.nativePath + XML_PATH + FILENAME;
+			trace(filename)
+				var xml:XML = XMLFileUtil.buildXML(filename,ROOT_XML)	;
+				if(xml)
+				{
+					saveXMl(xml);
+					load(curFile);
+					Alert.show("更新完成！");
+				}
+				else
+				{
+					Alert.show("更新失败！");
+				}
+				
+			}
+			
+			
+			protected function itemSelectChanged(event:IndexChangeEvent):void
+			{
+				currentItem_ = itemContainer.selectedItem;
+				this.displayItem(currentItem_);
+			}
+			
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	
+	<s:HGroup id="container" x="10" y="30" width="100%" height="100%" contentBackgroundColor="#FFFFFF"
+			  requestedColumnCount="2">
+		<s:VGroup width="300" height="580">
+			<s:HGroup width="300">
+			</s:HGroup>
+			<s:List id="itemContainer" height="540" width="300" labelField="@monster_name" change="itemSelectChanged(event)" dataProvider="{itemList_}" />			
+			<s:Button label="build" click="buildXMl(event)" />
+		</s:VGroup>
+		<s:HGroup>
+			<s:Form id="subItemContainer">			
+			</s:Form>
+		</s:HGroup>
+	</s:HGroup>
+</mx:Canvas>

@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx"
+		   implements="com.uqee.xajh.editor.IEditor"
+		   width="100%" height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.crypto.MD5;
+			import com.adobe.crypto.MD5Stream;
+			import com.uqee.xajh.XMLManager;
+			import com.uqee.xajh.editor.PHPFileUtil;
+			import com.uqee.xajh.editor.XMLFileUtil;
+			
+			import flash.sampler.NewObjectSample;
+			
+			import mx.collections.*;
+			import mx.controls.Alert;
+			import mx.events.MenuEvent;
+			
+			import spark.components.FormItem;
+			import spark.components.Label;
+			import spark.events.IndexChangeEvent;
+			
+			[Bindable]
+			public var itemList_:XMLListCollection = new XMLListCollection();
+			
+			[Bindable]
+			public var currentItem_:XML = <Npc/>;
+			
+			static private const PATH_LOG:String = "log"
+			
+			static private const FILENAME:String = "Npc.xml"; 
+			static private const ROOT_XML:XML = <Npc/>;
+			static private const XML_NODE_NAME:String = "npc";
+			static private const XML_PATH:String = "/excel/";
+			
+			
+			private var listNameArr:Vector.<Array>;
+			private var curFile:File;
+			
+			
+			public function save(dir:File):void {
+			}
+			
+			private function saveXMl(xml:XML,fileobj:File,logStr:String,logFile:File):void
+			{
+				var filename:String = fileobj.nativePath;
+				var file:File = new File(filename);
+				var fs:FileStream = new FileStream();
+				fs.open(file, FileMode.WRITE);
+				fs.writeUTFBytes(xml.toXMLString());
+				fs.close();
+				
+				fs.open(logFile, FileMode.WRITE);
+				fs.writeUTFBytes(logStr);
+				fs.close();
+				
+				txt.text += "\n已导出："+ filename;
+				_outNum++;
+			}
+			
+			public function load(dir:File):void {
+				var filename:String = dir.nativePath + "/" + FILENAME;
+				
+				
+				
+				curFile =  dir;
+				var file:File = new File(filename);
+				var xml:XML = XMLFileUtil.getXmlFile(file);
+				if (xml) {
+					itemList_.source = xml[XML_NODE_NAME];
+				}
+			}
+			
+			public function init():void
+			{ 
+				initList();
+				initUI();
+				txt.editable = false;
+			} 
+			
+			
+			private function initList():void
+			{
+				listNameArr = new Vector.<Array>;
+				
+			}
+			
+			private function initUI():void
+			{
+				
+			}
+			
+			private function displayItem(item:XML):void
+			{		
+				var helpStr:String;
+				for(var i:int=0;i<listNameArr.length;i++)
+				{
+					helpStr = listNameArr[i][1];
+					if(!item.@[helpStr])
+						continue;
+					
+					Label(listNameArr[i][2]).text = item.@[helpStr];
+					
+				}	
+			}
+			
+			private var _outNum:int =0;
+			protected function buildAllXMl(event:MouseEvent):void 
+			{
+				txt.text +="\n开始导出！";
+				_outNum=0;
+				var filename:String = curFile.nativePath + XML_PATH;
+				var excelFle:File = new File(filename);
+				if(excelFle.isDirectory)  
+				{ //指示是否为对目录的引用。如果 File 对象指向一个目录，则该值为 true；否则为 false  
+					var arr:Array=excelFle.getDirectoryListing();//getDirectoryListing()返回与此 File 对象表示的目录下的文件和目录对应的 File 对象的数组。此方法不浏览子目录的内容。   
+					for each(var file:File in arr){//File 对象表示文件或目录的路径(既可以是文件也可以是路径)  
+						if(!file.isDirectory)  
+						{  
+							buildXMl(file);
+						}
+					} 
+					
+					
+				}    
+				txt.text +="\n导出完毕！已导出"+_outNum+"份XML文件！"
+				txt.text +="\n================================================="
+			}
+			
+			
+			protected function buildXMl(excelFle:File):void
+			{
+				var filename:String = curFile.nativePath+"/xml/" + excelFle.name;
+				
+				
+				var fileNameArr:Array = excelFle.name.split(".");
+				var logFileName:String = curFile.nativePath + XML_PATH+"/"+ PATH_LOG+"/"+fileNameArr[0]+".log";
+				var php_path:String = curFile.nativePath+"/php_excel/"+fileNameArr[0]+"/";
+				
+				var xmlFile:File = new File(filename);
+				var logFile:File = new File(logFileName);
+				
+				//				if(xmlFile.exists  && xmlFile.modificationDate.time==excelFle.modificationDate.time)
+				//				return;
+				
+				var zStream:FileStream = new FileStream();
+				var byteArray:ByteArray = new ByteArray;
+				byteArray.endian = Endian.LITTLE_ENDIAN; 
+				zStream.open(excelFle, FileMode.READ); 
+				zStream.readBytes(byteArray, 0, byteArray.length);
+			
+			
+				var md5Str:String=MD5.hashBytes(byteArray);
+				if(logFile.exists  && getFileStr(logFile)==md5Str)
+					return;
+				
+				trace(filename)
+				var rootXMl:XML = new XML("<"+fileNameArr[0]+"list/>")
+				var xml:XML = XMLFileUtil.buildXML(excelFle.nativePath,rootXMl);
+				var php:ByteArray = PHPFileUtil.buildPHP(excelFle.nativePath,rootXMl,php_path,fileNameArr[0]);
+				if(xml && php)
+				{
+					saveXMl(xml,xmlFile,md5Str,logFile);
+					
+					//	load(curFile);
+					//	Alert.show("更新完成！");
+				}
+				else
+				{
+					//Alert.show("更新失败！");
+				}
+				
+			}
+			
+			private function getFileStr(file:File):String
+			{
+				var str:String
+				try
+				{
+					var fs:FileStream = new FileStream();
+					fs.open( file, FileMode.READ );
+					str= fs.readUTFBytes( fs.bytesAvailable );
+					fs.close();
+				}catch(e:Error) {
+					Alert.show(file.nativePath +"\n"+e.message);
+				}
+				return str;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	
+	<s:HGroup id="container" x="10" y="30" width="100%" height="100%" contentBackgroundColor="#FFFFFF"
+			  requestedColumnCount="2">
+		<s:VGroup width="605" height="580">
+			<s:TextArea id = "txt" width="618" height="345"/>
+			<s:Button label="build" click="buildAllXMl(event)" />
+		</s:VGroup>
+		<s:HGroup>
+		</s:HGroup>
+	</s:HGroup>
+</mx:Canvas>
