@@ -327,7 +327,7 @@ package com.uqee.xajh.editor
 				
 				cell_string += stringArr[j];
 				cell_string += ")";
-				cell_string.replace("、",",");
+				cell_string = cell_string.replace("、",",");
 				node_string += cell_string;
 				has_no_cell = false;
 			}
