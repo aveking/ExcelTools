@@ -544,7 +544,7 @@ package com.uqee.xajh.editor
 						cellList = y.Cell;
 						if(rowIdx==2)
 						{
-							phpfile = new File(php_path+"/"+listName+"/"+listName+".php");
+							phpfile = new File((php_path+"/"+listName+"/"+listName+".php").toLocaleLowerCase());
 							outstream = new FileStream();
 							
 							outstream.open( phpfile, FileMode.WRITE );
@@ -669,7 +669,7 @@ package com.uqee.xajh.editor
 								
 								php_out_filelist[row_keyfilename] = true;
 
-								phpfile = new File(php_path+"/"+listName+"/"+row_keyfilename+".php");
+								phpfile = new File((php_path+"/"+listName+"/"+row_keyfilename+".php").toLocaleLowerCase());
 								outstream = new FileStream();
 								
 								outstream.open( phpfile, FileMode.WRITE );
