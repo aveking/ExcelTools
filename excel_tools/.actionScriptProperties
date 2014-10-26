@@ -22,7 +22,7 @@
   <flashCatalyst validateFlashCatalystCompatibility="false"/>
   <buildTargets>
     <buildTarget buildTargetName="default">
-      <airSettings airCertificatePath="C:/Users/admin/Desktop/閺堫亜鎳￠崥锟�.p12" airTimestamp="true" anePathSet="true" version="1">
+      <airSettings airCertificatePath="C:/Users/jeson/Documents/GitHub/ExcelTools/cert.p12" airTimestamp="true" anePathSet="true" version="1">
         <airExcludes/>
         <anePaths/>
       </airSettings>
@@ -30,5 +30,3 @@
     </buildTarget>
   </buildTargets>
 </actionScriptProperties>
-
-

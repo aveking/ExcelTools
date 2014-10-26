@@ -160,7 +160,7 @@
 				var rootXMl:XML = new XML("<"+fileNameArr[0]+"list/>")
 				var xml:XML = XMLFileUtil.buildXML(excelFle.nativePath,rootXMl);
 				var php:ByteArray = PHPFileUtil.buildPHP(excelFle.nativePath,rootXMl,php_path,fileNameArr[0]);
-				if(xml && php)
+				if(xml)
 				{
 					saveXMl(xml,xmlFile,md5Str,logFile);
 					
