@@ -324,10 +324,27 @@ package com.uqee.xajh.editor
 					has_first_one =false;
 					cell_string = "array(";
 				}
+
+				//cell_string = cell_string.replace("、",",");
+				var first_par:Boolean = true;
+				var cellname_arr:Array = stringArr[j].split("、");
+				for(var c:int=0;c<cellname_arr.length;c++){
+					if( first_par ){
+						first_par = false;
+					}else{
+						cell_string += ",";
+					}
+
+					if(isNaN(cellname_arr[c])){
+						cell_string += "'" + cellname_arr[c] + "'";
+					}else{
+						cell_string += cellname_arr[c];
+					}
+				}
 				
-				cell_string += stringArr[j];
+				//cell_string += stringArr[j];
 				cell_string += ")";
-				cell_string = cell_string.replace("、",",");
+
 				node_string += cell_string;
 				has_no_cell = false;
 			}
